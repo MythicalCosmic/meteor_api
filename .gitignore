@@ -1,0 +1,7 @@
+# Ignore video files
+anime/episodes/videos/
+*.mp4
+*.mkv
+anime/banners/*
+anime/posters/*
+anime/trailers/*
