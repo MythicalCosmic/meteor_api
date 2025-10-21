@@ -30,14 +30,40 @@ class LoginSerializer(serializers.Serializer):
 
         data['user'] = user
         return data
+    
+class SimpleAnimeSerializer(serializers.ModelSerializer):
+    poster_url = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Anime
+        fields = ['id', 'slug', 'title', 'english_title', 'uzbek_title', 'poster_url', 'rating', 'total_episodes', 'release_year']
+    
+    def get_poster_url(self, obj):
+        request = self.context.get('request')
+        if obj.poster_url and request:
+            return request.build_absolute_uri(obj.poster_url.url)
+        return None
 
 
 class UserSerializer(serializers.ModelSerializer):
     avatar = serializers.SerializerMethodField()
+    liked_animes = serializers.SerializerMethodField()
+    favorite_animes = serializers.SerializerMethodField()
+    recent_watch_history = serializers.SerializerMethodField()
+    total_likes_given = serializers.SerializerMethodField()
+    total_favorites = serializers.SerializerMethodField()
+    total_comments = serializers.SerializerMethodField()
+    premium_expires_at = serializers.DateTimeField(read_only=True)
+    role = serializers.CharField(read_only=True)
+    last_login_at = serializers.DateTimeField(read_only=True)
     
     class Meta:
         model = User
-        fields = ['id', 'email', 'full_name', 'avatar', 'is_premium', 'created_at']
+        fields = [
+            'id', 'email', 'full_name', 'avatar', 'is_premium', 'premium_expires_at',
+            'role', 'created_at', 'last_login_at', 'liked_animes', 'favorite_animes',
+            'recent_watch_history', 'total_likes_given', 'total_favorites', 'total_comments'
+        ]
     
     def get_avatar(self, obj):
         request = self.context.get('request')
@@ -45,6 +71,42 @@ class UserSerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(obj.avatar.url)
         return None
 
+    def get_liked_animes(self, obj):
+        likes = Like.objects.filter(
+            user=obj, 
+            anime__isnull=False, 
+            episode__isnull=True, 
+            is_like=True
+        ).select_related('anime')
+        animes = [like.anime for like in likes]
+        return SimpleAnimeSerializer(animes, many=True, context=self.context).data
+
+    def get_favorite_animes(self, obj):
+        favorites = Favorite.objects.filter(user=obj).select_related('anime')
+        animes = [fav.anime for fav in favorites]
+        return SimpleAnimeSerializer(animes, many=True, context=self.context).data
+
+    def get_recent_watch_history(self, obj):
+        histories = WatchHistory.objects.filter(user=obj).select_related('anime', 'episode').order_by('-watched_at')[:10]
+        return [{
+            'anime_id': history.anime.id,
+            'anime_title': history.anime.title,
+            'episode_id': history.episode.id,
+            'episode_number': history.episode.episode_number,
+            'episode_title': history.episode.title,
+            'watch_duration_seconds': history.watch_duration_seconds,
+            'completed': history.completed,
+            'watched_at': history.watched_at
+        } for history in histories]
+
+    def get_total_likes_given(self, obj):
+        return Like.objects.filter(user=obj, is_like=True).count()
+
+    def get_total_favorites(self, obj):
+        return Favorite.objects.filter(user=obj).count()
+
+    def get_total_comments(self, obj):
+        return Comment.objects.filter(user=obj).count()
 
 class GenreSerializer(serializers.ModelSerializer):
     class Meta:
