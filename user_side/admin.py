@@ -9,7 +9,6 @@ from .models import (
     WatchHistory,
     Like,
     Comment,
-    AnimeView,
     Subscription,
     Payment,
     Advertisement,
@@ -25,7 +24,6 @@ admin.site.register(Genre)
 admin.site.register(WatchHistory)
 admin.site.register(Like)
 admin.site.register(Comment)
-admin.site.register(AnimeView)
 admin.site.register(Subscription)
 admin.site.register(Payment)
 admin.site.register(Advertisement)

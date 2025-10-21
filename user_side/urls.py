@@ -12,8 +12,18 @@ urlpatterns = [
 
     path('animes/<str:anime_identifier>/episodes/', EpisodeListView.as_view(), name='episode-list'),
     path('animes/<str:anime_identifier>/episodes/<str:episode_identifier>/', EpisodeDetailView.as_view(), name='episode-detail'),
+    path('animes/<str:anime_identifier>/episodes/<str:episode_identifier>/watch/', EpisodeWatchView.as_view(), name='episode-watch'),
 
     path('genres/', GenreListView.as_view(), name='genre-list'),
     path('genres/<str:identifier>/', GenreDetailView.as_view(), name='genre-detail'),
     path('genres/<str:identifier>/animes/', GenreAnimeListView.as_view(), name='genre-animes'),
+
+    path('animes/<str:anime_identifier>/like/', LikeToggleView.as_view(), name='anime-like-toggle'),
+    path('animes/<str:anime_identifier>/episodes/<str:episode_identifier>/like/', LikeToggleView.as_view(), name='episode-like-toggle'),
+    
+    path('animes/<str:anime_identifier>/comments/', CommentListCreateView.as_view(), name='anime-comments'),
+    path('animes/<str:anime_identifier>/episodes/<str:episode_identifier>/comments/', CommentListCreateView.as_view(), name='episode-comments'),
+    path('comments/<int:comment_id>/', CommentDetailView.as_view(), name='comment-detail'),
+    path('animes/<str:anime_identifier>/favorite/', FavoriteView.as_view(), name='favorite'),
+    path('favorites/', FavoriteListView.as_view(), name='favorite-list'), 
 ]

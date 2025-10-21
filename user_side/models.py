@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from django.db import models
+from django.utils import timezone
 
 class UserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
@@ -89,7 +90,9 @@ class Anime(models.Model):
     trailer_url = models.FileField(upload_to='anime/trailers/')
     rating = models.FloatField()
     total_views = models.IntegerField()
+    total_favorites = models.IntegerField()
     total_likes = models.IntegerField()
+    total_comments = models.IntegerField()
     is_premium_only = models.BooleanField(default=False) 
     is_published = models.BooleanField(default=False)  
     published_at = models.DateTimeField()
@@ -111,6 +114,7 @@ class Episode(models.Model):
     title = models.TextField()
     slug = models.TextField()
     description = models.TextField()
+    total_likes = models.IntegerField()
     thumbnail_url = models.FileField(upload_to='episodes/thumbnails/')
     duration_seconds = models.BigIntegerField()
     air_date = models.DateTimeField()
@@ -133,43 +137,125 @@ class EpisodeLanguage(models.Model):
     is_default = models.BooleanField(default=False)  
     created_at = models.DateTimeField(auto_now_add=True)
 
+
 class WatchHistory(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    anonymous_session = models.ForeignKey(AnonymousSession, on_delete=models.CASCADE)
-    episode = models.ForeignKey(Episode, on_delete=models.CASCADE)
-    anime = models.ForeignKey(Anime, on_delete=models.CASCADE)
-    watch_duration_seconds = models.IntegerField()
-    completed = models.BooleanField(default=False) 
+    user = models.ForeignKey('User', on_delete=models.CASCADE, null=True, blank=True)
+    anonymous_session = models.ForeignKey('AnonymousSession', on_delete=models.CASCADE, null=True, blank=True)
+    anime = models.ForeignKey('Anime', on_delete=models.CASCADE)
+    episode = models.ForeignKey('Episode', on_delete=models.CASCADE)
+    watch_duration_seconds = models.IntegerField(null=True, blank=True) 
+    completed = models.BooleanField(default=False, null=True, blank=True)  
     watched_at = models.DateTimeField()
-    ip_address = models.TextField()
-    device_type = models.TextField()
+    ip_address = models.CharField(max_length=45)
+    device_type = models.CharField(max_length=255, blank=True)
+    country = models.CharField(max_length=2, default='UZ')  
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(user__isnull=False, anonymous_session__isnull=True) |
+                      models.Q(user__isnull=True, anonymous_session__isnull=False),
+                name='watch_history_user_or_session'
+            ),
+            models.UniqueConstraint(
+                fields=['user', 'anime', 'episode'],
+                condition=models.Q(user__isnull=False),
+                name='unique_user_anime_episode'
+            ),
+            models.UniqueConstraint(
+                fields=['anonymous_session', 'anime', 'episode'],
+                condition=models.Q(anonymous_session__isnull=False),
+                name='unique_session_anime_episode'
+            )
+        ]
+        indexes = [
+            models.Index(fields=['user', 'anime', 'episode']),
+            models.Index(fields=['anonymous_session', 'anime', 'episode']),
+            models.Index(fields=['anime', 'watched_at']),
+            models.Index(fields=['episode', 'watched_at'])
+        ]
+
+    def save(self, *args, **kwargs):
+        if not self.watched_at:
+            self.watched_at = timezone.now()
+        super().save(*args, **kwargs)
+
 
 class Like(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    anonymous_session = models.ForeignKey(AnonymousSession, on_delete=models.CASCADE)
-    anime = models.ForeignKey(Anime, on_delete=models.CASCADE)
-    is_like = models.BooleanField(default=False) 
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    anonymous_session = models.ForeignKey('AnonymousSession', on_delete=models.CASCADE, null=True, blank=True)
+    anime = models.ForeignKey('Anime', on_delete=models.CASCADE, null=True, blank=True)
+    episode = models.ForeignKey('Episode', on_delete=models.CASCADE, null=True, blank=True)
+    is_like = models.BooleanField(default=True)  
+    
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'anime'],
+                condition=models.Q(user__isnull=False, anime__isnull=False, episode__isnull=True),
+                name='unique_user_anime_like'
+            ),
+            models.UniqueConstraint(
+                fields=['user', 'episode'],
+                condition=models.Q(user__isnull=False, episode__isnull=False),
+                name='unique_user_episode_like'
+            ),
+            models.UniqueConstraint(
+                fields=['anonymous_session', 'anime'],
+                condition=models.Q(anonymous_session__isnull=False, anime__isnull=False, episode__isnull=True),
+                name='unique_anon_anime_like'
+            ),
+            models.UniqueConstraint(
+                fields=['anonymous_session', 'episode'],
+                condition=models.Q(anonymous_session__isnull=False, episode__isnull=False),
+                name='unique_anon_episode_like'
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['anime', 'is_like']),
+            models.Index(fields=['episode', 'is_like']),
+        ]
+
+    def __str__(self):
+        target = self.episode or self.anime
+        user_str = self.user.username if self.user else f"Anon-{self.anonymous_session_id}"
+        return f"{user_str} {'liked' if self.is_like else 'disliked'} {target}"
+
 
 class Comment(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    anonymous_session = models.ForeignKey(AnonymousSession, on_delete=models.CASCADE, null=True, blank=True)
-    anime = models.ForeignKey(Anime, on_delete=models.CASCADE)
-    parent_id = models.IntegerField()
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    anonymous_session = models.ForeignKey('AnonymousSession', on_delete=models.CASCADE, null=True, blank=True)
+    anime = models.ForeignKey('Anime', on_delete=models.CASCADE, null=True, blank=True)
+    episode = models.ForeignKey('Episode', on_delete=models.CASCADE, null=True, blank=True)
+    parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='replies')
     comment = models.TextField()
-    guest_name = models.TextField()
-    is_approved = models.BooleanField(default=False)  
+    guest_name = models.CharField(max_length=100, null=True, blank=True)
+    is_approved = models.BooleanField(default=True) 
+    
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
-class AnimeView(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    anonymous_session = models.ForeignKey(AnonymousSession, on_delete=models.CASCADE)
-    anime = models.ForeignKey(Anime, on_delete=models.CASCADE)
-    episode = models.ForeignKey(Episode, on_delete=models.CASCADE)
-    viewed_at = models.DateTimeField()
-    ip_address = models.TextField()
-    country = models.TextField(default='UZ')
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['anime', 'is_approved', '-created_at']),
+            models.Index(fields=['episode', 'is_approved', '-created_at']),
+            models.Index(fields=['parent', '-created_at']),
+        ]
+
+    def __str__(self):
+        user_str = self.user.username if self.user else (self.guest_name or f"Anon-{self.anonymous_session_id}")
+        target = self.episode or self.anime
+        return f"{user_str} commented on {target}"
+
+    @property
+    def author_name(self):
+        if self.user:
+            return self.user.username
+        return self.guest_name or "Anonymous"
 
 class Subscription(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -217,3 +303,39 @@ class AdImpression(models.Model):
     clicked = models.BooleanField(default=False)
     viewed_at = models.DateTimeField()
     ip_address = models.TextField()
+
+
+class Favorite(models.Model):
+    user = models.ForeignKey('User', on_delete=models.CASCADE, null=True, blank=True)
+    anonymous_session = models.ForeignKey('AnonymousSession', on_delete=models.CASCADE, null=True, blank=True)
+    anime = models.ForeignKey('Anime', on_delete=models.CASCADE, related_name='favorites')
+    added_at = models.DateTimeField()
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(user__isnull=False, anonymous_session__isnull=True) |
+                      models.Q(user__isnull=True, anonymous_session__isnull=False),
+                name='favorite_user_or_session'
+            ),
+            models.UniqueConstraint(
+                fields=['user', 'anime'],
+                condition=models.Q(user__isnull=False),
+                name='unique_user_anime_favorite'
+            ),
+            models.UniqueConstraint(
+                fields=['anonymous_session', 'anime'],
+                condition=models.Q(anonymous_session__isnull=False),
+                name='unique_session_anime_favorite'
+            )
+        ]
+        indexes = [
+            models.Index(fields=['user', 'anime']),
+            models.Index(fields=['anonymous_session', 'anime']),
+            models.Index(fields=['anime', 'added_at'])
+        ]
+
+    def save(self, *args, **kwargs):
+        if not self.added_at:
+            self.added_at = timezone.now()
+        super().save(*args, **kwargs)
