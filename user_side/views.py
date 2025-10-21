@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
+from rest_framework.parsers import MultiPartParser, FormParser
 from .serializers import *
 from .base_response import (
     success_response, 
@@ -56,14 +57,33 @@ class LoginView(APIView):
 
 class MeView(APIView):
     permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser] 
 
     def get(self, request):
-        serializer = UserSerializer(request.user)
+        serializer = UserSerializer(request.user, context={'request': request})
         return success_response(
             data=serializer.data,
             message="Current user info"
         )
-    
+
+    def patch(self, request):
+        serializer = UserSerializer(
+            request.user,
+            data=request.data,
+            partial=True,  
+            context={'request': request}
+        )
+        if serializer.is_valid():
+            serializer.save()
+            return success_response(
+                data=serializer.data,
+                message="Profile updated successfully"
+            )
+        return error_response(
+            message="Failed to update profile",
+            errors=serializer.errors,
+            status=400
+        )
 
 class LogoutView(APIView):
     def post(self, request):
@@ -91,7 +111,7 @@ class AnimeListView(AnonymousSessionTrackingMixin, generics.ListAPIView):
     serializer_class = AnimeSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_class = AnimeFilter
-    search_fields = ['title', 'english_title', 'uzbek_title', 'description', 'type', 'status', 'season']
+    search_fields = ['title', 'english_title', 'russian_title', 'uzbek_title', 'description', 'type', 'status', 'season']
     ordering_fields = ['release_year', 'total_views', 'rating', 'created_at']
 
     def list(self, request, *args, **kwargs):
@@ -195,7 +215,6 @@ class EpisodeDetailView(AnonymousSessionTrackingMixin, generics.RetrieveAPIView)
         anime_identifier = self.kwargs.get('anime_identifier')
         episode_identifier = self.kwargs.get('episode_identifier')
 
-        # Fix: Use anime__id instead of anime_id
         anime_filter = (
             {'anime__id': int(anime_identifier)}
             if anime_identifier.isdigit()
@@ -218,9 +237,6 @@ class EpisodeDetailView(AnonymousSessionTrackingMixin, generics.RetrieveAPIView)
                 raise NotFound("Episode not found")
             return obj
         except Exception as e:
-            # Add logging to see the actual error
-            import logging
-            logger = logging.getLogger(__name__)
             logger.error(f"Error retrieving episode: {str(e)}")
             raise NotFound("Episode not found")
 
@@ -274,7 +290,6 @@ class EpisodeDetailView(AnonymousSessionTrackingMixin, generics.RetrieveAPIView)
         except NotFound:
             return not_found_response(message="Episode not found")
         except Exception as e:
-            # Add logging here too
             import logging
             logger.error(f"Error in get method: {str(e)}", exc_info=True)
             return error_response(
@@ -286,8 +301,8 @@ class GenreListView(generics.ListAPIView):
     queryset = Genre.objects.all().order_by('name')
     serializer_class = GenreSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['name', 'description']
-    ordering_fields = ['name', 'created_at']
+    search_fields = ['name', 'name_ru', 'description']
+    ordering_fields = ['name', 'name_ru', 'created_at']
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
@@ -344,7 +359,7 @@ class GenreAnimeListView(generics.ListAPIView):
     serializer_class = AnimeSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_class = AnimeFilter
-    search_fields = ['title', 'english_title', 'uzbek_title', 'description']
+    search_fields = ['title', 'english_title', 'russian_title', 'uzbek_title', 'description']
     ordering_fields = ['release_year', 'total_views', 'rating', 'created_at']
     
     def get_queryset(self):

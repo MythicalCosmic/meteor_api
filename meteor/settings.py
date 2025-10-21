@@ -149,3 +149,7 @@ SIMPLE_JWT = {
 }
 
 AUTH_USER_MODEL = 'user_side.User'
+
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'

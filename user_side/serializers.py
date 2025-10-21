@@ -2,7 +2,8 @@ from rest_framework import serializers
 from rest_framework.serializers import Serializer, IntegerField, BooleanField
 from django.contrib.auth.hashers import make_password, check_password
 from .models import *
-
+from django.core.exceptions import ValidationError
+from django.core.files.images import get_image_dimensions
 
 class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
@@ -13,7 +14,6 @@ class RegisterSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data['password'] = make_password(validated_data['password'])
         return super().create(validated_data)
-
 
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -30,13 +30,13 @@ class LoginSerializer(serializers.Serializer):
 
         data['user'] = user
         return data
-    
+
 class SimpleAnimeSerializer(serializers.ModelSerializer):
     poster_url = serializers.SerializerMethodField()
     
     class Meta:
         model = Anime
-        fields = ['id', 'slug', 'title', 'english_title', 'uzbek_title', 'poster_url', 'rating', 'total_episodes', 'release_year']
+        fields = ['id', 'slug', 'title', 'english_title', 'russian_title', 'uzbek_title', 'poster_url', 'rating', 'total_episodes', 'release_year']
     
     def get_poster_url(self, obj):
         request = self.context.get('request')
@@ -44,9 +44,9 @@ class SimpleAnimeSerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(obj.poster_url.url)
         return None
 
-
 class UserSerializer(serializers.ModelSerializer):
-    avatar = serializers.SerializerMethodField()
+    avatar = serializers.FileField(required=False, allow_null=True)  
+    avatar_url = serializers.SerializerMethodField() 
     liked_animes = serializers.SerializerMethodField()
     favorite_animes = serializers.SerializerMethodField()
     recent_watch_history = serializers.SerializerMethodField()
@@ -56,16 +56,22 @@ class UserSerializer(serializers.ModelSerializer):
     premium_expires_at = serializers.DateTimeField(read_only=True)
     role = serializers.CharField(read_only=True)
     last_login_at = serializers.DateTimeField(read_only=True)
-    
+    password = serializers.CharField(write_only=True, required=False, allow_blank=True)
+
     class Meta:
         model = User
         fields = [
-            'id', 'email', 'full_name', 'avatar', 'is_premium', 'premium_expires_at',
+            'id', 'email', 'full_name', 'avatar', 'avatar_url', 'is_premium', 'premium_expires_at',
             'role', 'created_at', 'last_login_at', 'liked_animes', 'favorite_animes',
-            'recent_watch_history', 'total_likes_given', 'total_favorites', 'total_comments'
+            'recent_watch_history', 'total_likes_given', 'total_favorites', 'total_comments',
+            'password'
         ]
-    
-    def get_avatar(self, obj):
+        extra_kwargs = {
+            'email': {'read_only': True},
+            'is_premium': {'read_only': True},
+        }
+
+    def get_avatar_url(self, obj):
         request = self.context.get('request')
         if obj.avatar and request:
             return request.build_absolute_uri(obj.avatar.url)
@@ -108,11 +114,43 @@ class UserSerializer(serializers.ModelSerializer):
     def get_total_comments(self, obj):
         return Comment.objects.filter(user=obj).count()
 
+    def validate_full_name(self, value):
+        if not value or not value.strip():
+            raise serializers.ValidationError("Full name cannot be empty or whitespace.")
+        return value.strip()
+
+    def validate_avatar(self, value):
+        if value:
+            if value.size > 5 * 1024 * 1024:
+                raise ValidationError("Avatar file size must be under 5MB.")
+            try:
+                w, h = get_image_dimensions(value)
+                if not w or not h:
+                    raise ValidationError("Invalid image file.")
+            except:
+                raise ValidationError("Invalid image file.")
+        return value
+
+    def validate_password(self, value):
+        if value:
+            return make_password(value)
+        return None
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop('password', None)
+        if password:
+            instance.set_password(password)
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        
+        instance.save()
+        return instance
+
 class GenreSerializer(serializers.ModelSerializer):
     class Meta:
         model = Genre
-        fields = ['id', 'name', 'slug']
-
+        fields = ['id', 'name', 'name_ru', 'slug']
 
 class EpisodeLanguageSerializer(serializers.ModelSerializer):
     video_url = serializers.SerializerMethodField()
@@ -130,7 +168,6 @@ class EpisodeLanguageSerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(obj.video_url.url)
         return None
 
-
 class FirstEpisodeSerializer(serializers.ModelSerializer):
     languages = serializers.SerializerMethodField()
     thumbnail_url = serializers.SerializerMethodField()
@@ -138,7 +175,7 @@ class FirstEpisodeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Episode
         fields = [
-            'id', 'episode_number', 'title', 'slug', 'thumbnail_url',
+            'id', 'episode_number', 'title', 'title_ru', 'slug', 'thumbnail_url',
             'duration_seconds', 'air_date', 'is_premium_only', 'languages'
         ]
     
@@ -157,18 +194,24 @@ class FirstEpisodeSerializer(serializers.ModelSerializer):
             context={'request': request}
         ).data
 
-
 class AnimeSerializer(serializers.ModelSerializer):
     genres = GenreSerializer(many=True, read_only=True)
     first_episode = serializers.SerializerMethodField()
     poster_url = serializers.SerializerMethodField()
     banner_url = serializers.SerializerMethodField()
     trailer_url = serializers.SerializerMethodField()
+    title = serializers.CharField()
+    english_title = serializers.CharField()
+    uzbek_title = serializers.CharField()
+    russian_title = serializers.CharField(allow_null=True)
+    description = serializers.CharField()
+    type = serializers.CharField()
+    status = serializers.CharField()
 
     class Meta:
         model = Anime
         fields = [
-            'id', 'slug', 'title', 'english_title', 'uzbek_title', 'description',
+            'id', 'slug', 'title', 'english_title', 'uzbek_title', 'russian_title', 'description',
             'type', 'status', 'total_episodes', 'duration_minutes', 'release_year',
             'season', 'poster_url', 'banner_url', 'trailer_url', 'rating',
             'total_views', 'total_likes', 'is_premium_only', 'is_published', 'published_at',
@@ -207,33 +250,33 @@ class AnimeSerializer(serializers.ModelSerializer):
             ).data
         return None
 
-
 class AnonymousSessionSerializer(serializers.ModelSerializer):
     class Meta:
         model = AnonymousSession
         fields = '__all__'
 
-
 class EpisodeSerializer(serializers.ModelSerializer):
     thumbnail_url = serializers.SerializerMethodField()
     anime_title = serializers.CharField(source='anime.title', read_only=True)
     languages = serializers.SerializerMethodField()
-    
+    title = serializers.CharField()
+    title_ru = serializers.CharField(allow_null=True)  # Allow null for optional field
+
     class Meta:
         model = Episode
         fields = [
-            'id', 'anime_title', 'episode_number', 'title', 'slug',
+            'id', 'anime_title', 'episode_number', 'title', 'title_ru', 'slug',
             'description', 'thumbnail_url', 'duration_seconds',
             'air_date', 'is_premium_only', 'total_views', 'is_published',
             'languages'
         ]
-    
+
     def get_thumbnail_url(self, obj):
         request = self.context.get('request')
         if obj.thumbnail_url and request:
             return request.build_absolute_uri(obj.thumbnail_url.url)
         return None
-    
+
     def get_languages(self, obj):
         request = self.context.get('request')
         episode_languages = EpisodeLanguage.objects.filter(episode=obj)
@@ -242,7 +285,6 @@ class EpisodeSerializer(serializers.ModelSerializer):
             many=True,
             context={'request': request}
         ).data
-
 
 class EpisodeDetailSerializer(serializers.ModelSerializer):
     thumbnail_url = serializers.SerializerMethodField()
@@ -250,22 +292,24 @@ class EpisodeDetailSerializer(serializers.ModelSerializer):
     anime = serializers.SerializerMethodField()
     next_episode = serializers.SerializerMethodField()
     previous_episode = serializers.SerializerMethodField()
-    
+    title = serializers.CharField()
+    title_ru = serializers.CharField(allow_null=True)  
+
     class Meta:
         model = Episode
         fields = [
-            'id', 'episode_number', 'title', 'slug', 'description',
+            'id', 'episode_number', 'title', 'title_ru', 'slug', 'description',
             'thumbnail_url', 'duration_seconds', 'air_date',
             'is_premium_only', 'total_views', 'languages',
             'anime', 'next_episode', 'previous_episode'
         ]
-    
+
     def get_thumbnail_url(self, obj):
         request = self.context.get('request')
         if obj.thumbnail_url and request:
             return request.build_absolute_uri(obj.thumbnail_url.url)
         return None
-    
+
     def get_languages(self, obj):
         request = self.context.get('request')
         episode_languages = EpisodeLanguage.objects.filter(episode=obj)
@@ -274,7 +318,7 @@ class EpisodeDetailSerializer(serializers.ModelSerializer):
             many=True,
             context={'request': request}
         ).data
-    
+
     def get_anime(self, obj):
         return {
             'id': obj.anime.id,
@@ -282,50 +326,51 @@ class EpisodeDetailSerializer(serializers.ModelSerializer):
             'slug': obj.anime.slug,
             'poster_url': self.context['request'].build_absolute_uri(obj.anime.poster_url.url) if obj.anime.poster_url else None
         }
-    
+
     def get_next_episode(self, obj):
         next_ep = Episode.objects.filter(
             anime=obj.anime,
             episode_number__gt=obj.episode_number,
             is_published=True
         ).order_by('episode_number').first()
-        
+
         if next_ep:
             return {
                 'id': next_ep.id,
                 'episode_number': next_ep.episode_number,
                 'title': next_ep.title,
+                'title_ru': next_ep.title_ru,  
                 'slug': next_ep.slug
             }
         return None
-    
+
     def get_previous_episode(self, obj):
         prev_ep = Episode.objects.filter(
             anime=obj.anime,
             episode_number__lt=obj.episode_number,
             is_published=True
         ).order_by('-episode_number').first()
-        
+
         if prev_ep:
             return {
                 'id': prev_ep.id,
                 'episode_number': prev_ep.episode_number,
                 'title': prev_ep.title,
+                'title_ru': prev_ep.title_ru,  
                 'slug': prev_ep.slug
             }
         return None
-    
+
 
 class GenreSerializer(serializers.ModelSerializer):
     anime_count = serializers.SerializerMethodField()
     
     class Meta:
         model = Genre
-        fields = ['id', 'name', 'slug', 'description', 'anime_count', 'created_at']
+        fields = ['id', 'name', 'name_ru', 'slug', 'description', 'anime_count', 'created_at']
     
     def get_anime_count(self, obj):
         return obj.animes.filter(is_published=True).count()
-
 
 class GenreDetailSerializer(serializers.ModelSerializer):
     anime_count = serializers.SerializerMethodField()
@@ -333,7 +378,7 @@ class GenreDetailSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Genre
-        fields = ['id', 'name', 'slug', 'description', 'anime_count', 'top_animes', 'created_at', 'updated_at']
+        fields = ['id', 'name', 'name_ru', 'slug', 'description', 'anime_count', 'top_animes', 'created_at', 'updated_at']
     
     def get_anime_count(self, obj):
         return obj.animes.filter(is_published=True).count()
@@ -350,8 +395,6 @@ class GenreDetailSerializer(serializers.ModelSerializer):
             'total_views': anime.total_views,
             'poster_url': request.build_absolute_uri(anime.poster_url.url) if anime.poster_url and request else None
         } for anime in top_animes]
-
-
 
 class WatchHistorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -372,7 +415,7 @@ class WatchHistorySerializer(serializers.ModelSerializer):
             if completed and watch_duration_seconds < episode.duration_seconds * 0.9:
                 raise serializers.ValidationError("Episode cannot be marked completed if watched less than 90%.")
         return data
-    
+
 class LikeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Like
@@ -383,7 +426,6 @@ class LikeSerializer(serializers.ModelSerializer):
         if 'is_like' not in data:
             data['is_like'] = True
         return data
-
 
 class CommentSerializer(serializers.ModelSerializer):
     author_name = serializers.CharField(read_only=True)
@@ -435,7 +477,6 @@ class CommentSerializer(serializers.ModelSerializer):
         
         return data
 
-
 class CommentDetailSerializer(CommentSerializer):
     replies = serializers.SerializerMethodField()
     
@@ -445,7 +486,6 @@ class CommentDetailSerializer(CommentSerializer):
     def get_replies(self, obj):
         replies = obj.replies.filter(is_approved=True).order_by('created_at')
         return CommentSerializer(replies, many=True, context=self.context).data
-    
 
 class FavoriteSerializer(serializers.ModelSerializer):
     anime = serializers.PrimaryKeyRelatedField(queryset=Anime.objects.filter(is_published=True))
@@ -459,4 +499,3 @@ class FavoriteSerializer(serializers.ModelSerializer):
         if not value.is_published:
             raise serializers.ValidationError("Cannot favorite an unpublished anime.")
         return value
-

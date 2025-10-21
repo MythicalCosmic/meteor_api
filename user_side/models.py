@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from django.db import models
 from django.utils import timezone
+from moviepy.video.io.VideoFileClip import VideoFileClip
 
 class UserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
@@ -20,7 +21,7 @@ class UserManager(BaseUserManager):
 class User(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True)
     full_name = models.CharField(max_length=255)
-    avatar = models.FileField(upload_to='avatars/', blank=True, null=True)
+    avatar = models.FileField(upload_to='media/avatars/', blank=True, null=True)
     is_premium = models.BooleanField(default=False)
     premium_expires_at = models.DateTimeField(null=True, blank=True)
     role = models.CharField(max_length=50)
@@ -44,7 +45,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         ]
 
 class AnonymousSession(models.Model):
-    session_token = models.TextField()
+    session_token = models.CharField(max_length=100)
     fingerprint_hash = models.TextField()
     ip_address = models.TextField()
     country = models.TextField(default='UZ')
@@ -60,6 +61,7 @@ class AnonymousSession(models.Model):
 
 class Genre(models.Model):
     name = models.CharField(max_length=100) 
+    name_ru = models.CharField(max_length=100, blank=True, null=True)
     slug = models.SlugField(unique=True, max_length=100)  
     description = models.TextField(blank=True, default='') 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -74,20 +76,35 @@ class Genre(models.Model):
         ]
 
 class Anime(models.Model):
-    title = models.TextField()
+    TYPE_CHOICES = (
+        ('TV', 'TV Series'),
+        ('MOVIE', 'Movie'),
+        ('OVA', 'Original Video Animation'),
+        ('ONA', 'Original Net Animation'),
+        ('SPECIAL', 'Special'),
+    )
+    STATUS_CHOICES = (
+        ('ONGOING', 'Ongoing'),
+        ('COMPLETED', 'Completed'),
+        ('ANNOUNCED', 'Announced'),
+        ('HIATUS', 'Hiatus'),
+        ('CANCELLED', 'Cancelled'),
+    )
+    title = models.CharField(max_length=50)
     slug = models.SlugField(unique=True)
-    english_title = models.TextField()
-    uzbek_title = models.TextField()
-    description = models.TextField()
-    type = models.TextField()
-    status = models.TextField()
+    english_title = models.CharField(max_length=50)
+    russian_title = models.CharField(max_length=50, null=True, blank=True)
+    uzbek_title = models.CharField(max_length=50)
+    description = models.CharField(max_length=50)
+    type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='TV') 
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ONGOING')
     total_episodes = models.IntegerField()
     duration_minutes = models.IntegerField()
     release_year = models.IntegerField()
     season = models.TextField()
-    poster_url = models.FileField(upload_to='anime/posters/')
-    banner_url = models.FileField(upload_to='anime/banners/')
-    trailer_url = models.FileField(upload_to='anime/trailers/')
+    poster_url = models.FileField(upload_to='media/anime/posters/')
+    banner_url = models.FileField(upload_to='media/anime/banners/')
+    trailer_url = models.FileField(upload_to='media/anime/trailers/')
     rating = models.FloatField()
     total_views = models.IntegerField()
     total_favorites = models.IntegerField()
@@ -111,11 +128,12 @@ class Anime(models.Model):
 class Episode(models.Model):
     anime = models.ForeignKey(Anime, on_delete=models.CASCADE)
     episode_number = models.IntegerField()
-    title = models.TextField()
-    slug = models.TextField()
+    title = models.CharField(max_length=50)
+    title_ru = models.CharField(max_length=50, blank=True, null=True)
+    slug = models.SlugField(unique=True)
     description = models.TextField()
     total_likes = models.IntegerField()
-    thumbnail_url = models.FileField(upload_to='episodes/thumbnails/')
+    thumbnail_url = models.FileField(upload_to='media/episodes/thumbnails/')
     duration_seconds = models.BigIntegerField()
     air_date = models.DateTimeField()
     is_premium_only = models.BooleanField(default=False) 
@@ -130,12 +148,28 @@ class Episode(models.Model):
 
 class EpisodeLanguage(models.Model):
     episode = models.ForeignKey(Episode, on_delete=models.CASCADE)
-    language = models.TextField(default='uzbek')
-    video_url = models.FileField(upload_to='episodes/videos/')
-    video_quality = models.TextField()
-    file_size_mb = models.TextField()
+    language = models.CharField(max_length=50, default='uzbek')
+    video_url = models.FileField(upload_to='media/episodes/videos/')
+    video_quality = models.CharField(max_length=50, default='1080p')
+    file_size_mb = models.CharField(max_length=50)
     is_default = models.BooleanField(default=False)  
     created_at = models.DateTimeField(auto_now_add=True)
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs) 
+        if self.video_url:
+            try:
+                self.file_size_mb = self.video_url.size / (1024 * 1024)
+                
+                clip = VideoFileClip(self.video_url.path)
+                duration = clip.duration
+                clip.close()
+                if self.is_default:
+                    self.episode.duration_seconds = int(duration)
+                    self.episode.save(update_fields=['duration_seconds'])
+            except Exception as e:
+                print(f"Error processing video: {e}")  
+                self.file_size_mb = 0  
+            super().save(update_fields=['file_size_mb'])
 
 
 class WatchHistory(models.Model):
@@ -283,7 +317,7 @@ class Payment(models.Model):
 class Advertisement(models.Model):
     title = models.TextField()
     type = models.TextField()
-    content_url = models.FileField(upload_to='ads/content/')
+    content_url = models.FileField(upload_to='media/ads/content/')
     html_code = models.TextField()
     duration_seconds = models.IntegerField()
     click_url = models.URLField()

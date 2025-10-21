@@ -1,7 +1,95 @@
-# Ignore video files
-anime/episodes/videos/
-*.mp4
-*.mkv
-anime/banners/*
-anime/posters/*
-anime/trailers/*
+# Python/Django files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+*.egg
+dist/
+build/
+
+# Django-specific
+*.log
+*.pot
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+migrations/
+*.pid
+
+# Media and static files
+media/
+staticfiles/
+*.media
+
+# Environment and secrets
+.env
+env/
+venv/
+virtualenv/
+*.env
+*.env.*
+.envrc
+*.secret
+*.key
+*.pem
+settings_local.py
+local_settings.py
+
+# IDE and editor files
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Testing and coverage
+.coverage
+coverage.xml
+*.cover
+htmlcov/
+.tox/
+.pytest_cache/
+.cache/
+
+# Dependency management
+pip-log.txt
+pip-wheel-metadata/
+Pipfile.lock
+requirements.txt.bak
+
+# Documentation
+docs/_build/
+
+# Miscellaneous
+*.bak
+*.backup
+*.tmp
+*.temp
+node_modules/
+dist/
+*.zip
+*.tar.gz
+
+# Project-specific
+media/avatars/
+media/anime/
+media/episodes/
+*.sql
+*.dump
+debug.log
