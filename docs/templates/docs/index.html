@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meteordub Anime Streaming API Documentation</title>
+    <style>
+        :root {
+            --primary-color: #ff4b91;
+            --secondary-color: #00f0ff;
+            --text-color: #ffffff;
+            --bg-dark: #0a0a0a;
+            --bg-light: #f0f4f8;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            color: var(--text-color);
+            overflow-x: hidden;
+            position: relative;
+            transition: background 0.3s ease;
+        }
+
+        .light {
+            background: linear-gradient(135deg, var(--bg-light) 0%, #e0e7ff 100%);
+        }
+
+        .dark {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #1e1e1e 100%);
+        }
+
+        #backgroundCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.3;
+        }
+
+        #controls {
+            position: sticky;
+            top: 20px;
+            z-index: 10;
+            display: flex;
+            gap: 15px;
+            margin: 20px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+        }
+
+        button, select {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+            background: var(--primary-color);
+            color: var(--text-color);
+        }
+
+        button:hover, select:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            background: var(--secondary-color);
+        }
+
+        h1 {
+            text-align: center;
+            margin: 40px 0;
+            font-size: 3rem;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: fadeIn 1s ease-out;
+        }
+
+        .section, .subsection {
+            margin: 20px auto;
+            max-width: 900px;
+            padding: 25px;
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .section:hover, .subsection:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        h2, h3 {
+            color: var(--text-color);
+            margin-bottom: 15px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p {
+            margin-bottom: 15px;
+            line-height: 1.7;
+            color: var(--text-color);
+            opacity: 0.9;
+        }
+
+        pre {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 10px;
+            overflow-x: auto;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9rem;
+            transition: background 0.3s ease;
+        }
+
+        .dark pre {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        footer {
+            text-align: center;
+            margin: 50px 0;
+            font-size: 1.1rem;
+            color: var(--text-color);
+            opacity: 0.8;
+            animation: slideUp 1s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(50px); }
+            to { opacity: 0.8; transform: translateY(0); }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            h1 { font-size: 2rem; }
+            .section, .subsection { padding: 15px; }
+            button, select { padding: 10px 15px; font-size: 0.9rem; }
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&family=Fira+Code&display=swap" rel="stylesheet">
+</head>
+<body class="dark">
+    <canvas id="backgroundCanvas"></canvas>
+    <div id="controls">
+        <select onchange="switchLanguage(this.value)">
+            <option value="en">English</option>
+            <option value="ru">Русский</option>
+            <option value="uz">O'zbek</option>
+        </select>
+    </div>
+
+    <h1 class="en">Meteordub Streaming API Documentation</h1>
+    <h1 class="ru hidden">Meteordub Документация API для стриминга аниме</h1>
+    <h1 class="uz hidden">Meteordub Anime Streaming API Hujjati</h1>
+
+    <div class="section">
+        <h2 class="en">Introduction</h2>
+        <h2 class="ru hidden">Введение</h2>
+        <h2 class="uz hidden">Kirish</h2>
+        <p class="en">This documentation covers the Django-based API for an anime streaming platform. It includes user management, anime and episode handling, comments, likes, favorites, and more. All endpoints are under the base URL (e.g., /api/). Authentication uses JWT.</p>
+        <p class="ru hidden">Эта документация охватывает API на основе Django для платформы стриминга аниме. Она включает управление пользователями, обработку аниме и эпизодов, комментарии, лайки, избранное и многое другое. Все endpoints находятся под базовым URL (например, /api/). Аутентификация использует JWT.</p>
+        <p class="uz hidden">Ushbu hujjat Django asosidagi anime streaming platformasi uchun API ni qamrab oladi. U foydalanuvchilarni boshqarish, anime va epizodlarni ishlov berish, izohlar, layklar, sevimlilar va boshqalarni o'z ichiga oladi. Barcha endpointlar bazaviy URL ostida (masalan, /api/). Autentifikatsiya JWT dan foydalanadi.</p>
+    </div>
+
+    <div class="section">
+        <h2 class="en">Models</h2>
+        <h2 class="ru hidden">Модели</h2>
+        <h2 class="uz hidden">Modellar</h2>
+
+        <div class="subsection">
+            <h3 class="en">User</h3>
+            <h3 class="ru hidden">Пользователь</h3>
+            <h3 class="uz hidden">Foydalanuvchi</h3>
+            <p class="en">Custom user model with email as username.</p>
+            <p class="ru hidden">Пользовательская модель пользователя с email в качестве имени пользователя.</p>
+            <p class="uz hidden">Emailni foydalanuvchi nomi sifatida ishlatadigan maxsus foydalanuvchi modeli.</p>
+            <pre>class User(AbstractBaseUser, PermissionsMixin): ...</pre>
+            <p class="en">Fields: email, full_name, avatar, is_premium, premium_expires_at, role, is_active, is_staff, created_at, last_login_at.</p>
+            <p class="ru hidden">Поля: email, full_name, avatar, is_premium, premium_expires_at, role, is_active, is_staff, created_at, last_login_at.</p>
+            <p class="uz hidden">Maydonlar: email, full_name, avatar, is_premium, premium_expires_at, role, is_active, is_staff, created_at, last_login_at.</p>
+        </div>
+
+        <div class="subsection">
+            <h3 class="en">AnonymousSession</h3>
+            <h3 class="ru hidden">Анонимная сессия</h3>
+            <h3 class="uz hidden">Anonim Sessiya</h3>
+            <p class="en">Tracks anonymous users.</p>
+            <p class="ru hidden">Отслеживает анонимных пользователей.</p>
+            <p class="uz hidden">Anonim foydalanuvchilarni kuzatib boradi.</p>
+            <pre>class AnonymousSession(models.Model): ...</pre>
+            <p class="en">Fields: session_token, fingerprint_hash, ip_address, country, city, first_seen_at, last_seen_at, total_visits.</p>
+            <p class="ru hidden">Поля: session_token, fingerprint_hash, ip_address, country, city, first_seen_at, last_seen_at, total_visits.</p>
+            <p class="uz hidden">Maydonlar: session_token, fingerprint_hash, ip_address, country, city, first_seen_at, last_seen_at, total_visits.</p>
+        </div>
+
+        <div class="subsection">
+            <h3 class="en">Genre</h3>
+            <h3 class="ru hidden">Жанр</h3>
+            <h3 class="uz hidden">Janr</h3>
+            <p class="en">Anime genres.</p>
+            <p class="ru hidden">Жанры аниме.</p>
+            <p class="uz hidden">Anime janrlari.</p>
+            <pre>class Genre(models.Model): ...</pre>
+            <p class="en">Fields: name, name_ru, slug, description, created_at, updated_at.</p>
+            <p class="ru hidden">Поля: name, name_ru, slug, description, created_at, updated_at.</p>
+            <p class="uz hidden">Maydonlar: name, name_ru, slug, description, created_at, updated_at.</p>
+        </div>
+
+        <div class="subsection">
+            <h3 class="en">Anime</h3>
+            <h3 class="ru hidden">Аниме</h3>
+            <h3 class="uz hidden">Anime</h3>
+            <p class="en">Main anime model.</p>
+            <p class="ru hidden">Основная модель аниме.</p>
+            <p class="uz hidden">Asosiy anime modeli.</p>
+            <pre>class Anime(models.Model): ...</pre>
+            <p class="en">Fields: title, slug, english_title, russian_title, uzbek_title, description, type, status, total_episodes, duration_minutes, release_year, season, poster_url, banner_url, trailer_url, rating, total_views, total_favorites, total_likes, total_comments, is_premium_only, is_published, published_at, genres, created_at, updated_at.</p>
+            <p class="ru hidden">Поля: title, slug, english_title, russian_title, uzbek_title, description, type, status, total_episodes, duration_minutes, release_year, season, poster_url, banner_url, trailer_url, rating, total_views, total_favorites, total_likes, total_comments, is_premium_only, is_published, published_at, genres, created_at, updated_at.</p>
+            <p class="uz hidden">Maydonlar: title, slug, english_title, russian_title, uzbek_title, description, type, status, total_episodes, duration_minutes, release_year, season, poster_url, banner_url, trailer_url, rating, total_views, total_favorites, total_likes, total_comments, is_premium_only, is_published, published_at, genres, created_at, updated_at.</p>
+        </div>
+
+        <div class="subsection">
+            <h3 class="en">Episode</h3>
+            <h3 class="ru hidden">Эпизод</h3>
+            <h3 class="uz hidden">Epizod</h3>
+            <p class="en">Episodes of anime.</p>
+            <p class="ru hidden">Эпизоды аниме.</p>
+            <p class="uz hidden">Anime epizodlari.</p>
+            <pre>class Episode(models.Model): ...</pre>
+            <p class="en">Fields: anime, episode_number, title, title_ru, slug, description, total_likes, thumbnail_url, duration_seconds, air_date, is_premium_only, total_views, is_published, created_at.</p>
+            <p class="ru hidden">Поля: anime, episode_number, title, title_ru, slug, description, total_likes, thumbnail_url, duration_seconds, air_date, is_premium_only, total_views, is_published, created_at.</p>
+            <p class="uz hidden">Maydonlar: anime, episode_number, title, title_ru, slug, description, total_likes, thumbnail_url, duration_seconds, air_date, is_premium_only, total_views, is_published, created_at.</p>
+        </div>
+
+        <div class="subsection">
+            <h3 class="en">EpisodeLanguage</h3>
+            <h3 class="ru hidden">Язык эпизода</h3>
+            <h3 class="uz hidden">Epizod Tili</h3>
+            <p class="en">Video tracks in different languages and qualities.</p>
+            <p class="ru hidden">Видео треки на разных языках и качествах.</p>
+            <p class="uz hidden">Turli tillarda va sifatlarda video treklar.</p>
+            <pre>class EpisodeLanguage(models.Model): ...</pre>
+            <p class="en">Fields: episode, language, video_url, video_quality, file_size_mb, is_default, created_at.</p>
+            <p class="ru hidden">Поля: episode, language, video_url, video_quality, file_size_mb, is_default, created_at.</p>
+            <p class="uz hidden">Maydonlar: episode, language, video_url, video_quality, file_size_mb, is_default, created_at.</p>
+        </div>
+
+        <div class="subsection">
+            <h3 class="en">WatchHistory</h3>
+            <h3 class="ru hidden">История просмотров</h3>
+            <h3 class="uz hidden">Ko'rish Tarixi</h3>
+            <p class="en">Tracks watched episodes.</p>
+            <p class="ru hidden">Отслеживает просмотренные эпизоды.</p>
+            <p class="uz hidden">Ko'rilgan epizodlarni kuzatib boradi.</p>
+            <pre>class WatchHistory(models.Model): ...</pre>
+            <p class="en">Fields: user, anonymous_session, anime, episode, watch_duration_seconds, completed, watched_at, ip_address, device_type, country.</p>
+            <p class="ru hidden">Поля: user, anonymous_session, anime, episode, watch_duration_seconds, completed, watched_at, ip_address, device_type, country.</p>
+            <p class="uz hidden">Maydonlar: user, anonymous_session, anime, episode, watch_duration_seconds, completed, watched_at, ip_address, device_type, country.</p>
+        </div>
+
+        <div class="subsection">
+            <h3 class="en">Like</h3>
+            <h3 class="ru hidden">Лайк</h3>
+            <h3 class="uz hidden">Layk</h3>
+            <p class="en">Likes/dislikes for anime or episodes.</p>
+            <p class="ru hidden">Лайки/дизлайки для аниме или эпизодов.</p>
+            <p class="uz hidden">Anime yoki epizodlar uchun layk/dizlayk.</p>
+            <pre>class Like(models.Model): ...</pre>
+            <p class="en">Fields: user, anonymous_session, anime, episode, is_like, created_at, updated_at.</p>
+            <p class="ru hidden">Поля: user, anonymous_session, anime, episode, is_like, created_at, updated_at.</p>
+            <p class="uz hidden">Maydonlar: user, anonymous_session, anime, episode, is_like, created_at, updated_at.</p>
+        </div>
+
+        <div class="subsection">
+            <h3 class="en">Comment</h3>
+            <h3 class="ru hidden">Комментарий</h3>
+            <h3 class="uz hidden">Izoh</h3>
+            <p class="en">Comments on anime or episodes.</p>
+            <p class="ru hidden">Комментарии к аниме или эпизодам.</p>
+            <p class="uz hidden">Anime yoki epizodlarga izohlar.</p>
+            <pre>class Comment(models.Model): ...</pre>
+            <p class="en">Fields: user, anonymous_session, anime, episode, parent, comment, guest_name, is_approved, created_at, updated_at.</p>
+            <p class="ru hidden">Поля: user, anonymous_session, anime, episode, parent, comment, guest_name, is_approved, created_at, updated_at.</p>
+            <p class="uz hidden">Maydonlar: user, anonymous_session, anime, episode, parent, comment, guest_name, is_approved, created_at, updated_at.</p>
+        </div>
+
+        <div class="subsection">
+            <h3 class="en">Subscription</h3>
+            <h3 class="ru hidden">Подписка</h3>
+            <h3 class="uz hidden">Obuna</h3>
+            <p class="en">User subscriptions.</p>
+            <p class="ru hidden">Подписки пользователей.</p>
+            <p class="uz hidden">Foydalanuvchi obunalari.</p>
+            <pre>class Subscription(models.Model): ...</pre>
+            <p class="en">Fields: user, plan_type, price, currency, status, starts_at, expires_at, auto_renew, created_at.</p>
+            <p class="ru hidden">Поля: user, plan_type, price, currency, status, starts_at, expires_at, auto_renew, created_at.</p>
+            <p class="uz hidden">Maydonlar: user, plan_type, price, currency, status, starts_at, expires_at, auto_renew, created_at.</p>
+        </div>
+
+        <div class="subsection">
+            <h3 class="en">Payment</h3>
+            <h3 class="ru hidden">Платеж</h3>
+            <h3 class="uz hidden">To'lov</h3>
+            <p class="en">Payment records.</p>
+            <p class="ru hidden">Записи платежей.</p>
+            <p class="uz hidden">To'lov yozuvlari.</p>
+            <pre>class Payment(models.Model): ...</pre>
+            <p class="en">Fields: user, subscription, payment_gateway, transaction_id, amount, currency, status, payment_method, paid_at, created_at.</p>
+            <p class="ru hidden">Поля: user, subscription, payment_gateway, transaction_id, amount, currency, status, payment_method, paid_at, created_at.</p>
+            <p class="uz hidden">Maydonlar: user, subscription, payment_gateway, transaction_id, amount, currency, status, payment_method, paid_at, created_at.</p>
+        </div>
+
+        <div class="subsection">
+            <h3 class="en">Advertisement</h3>
+            <h3 class="ru hidden">Реклама</h3>
+            <h3 class="uz hidden">Reklama</h3>
+            <p class="en">Ads configuration.</p>
+            <p class="ru hidden">Конфигурация рекламы.</p>
+            <p class="uz hidden">Reklama konfiguratsiyasi.</p>
+            <pre>class Advertisement(models.Model): ...</pre>
+            <p class="en">Fields: title, type, content_url, html_code, duration_seconds, click_url, position, is_active, priority, total_impressions, total_clicks, created_at.</p>
+            <p class="ru hidden">Поля: title, type, content_url, html_code, duration_seconds, click_url, position, is_active, priority, total_impressions, total_clicks, created_at.</p>
+            <p class="uz hidden">Maydonlar: title, type, content_url, html_code, duration_seconds, click_url, position, is_active, priority, total_impressions, total_clicks, created_at.</p>
+        </div>
+
+        <div class="subsection">
+            <h3 class="en">AdImpression</h3>
+            <h3 class="ru hidden">Просмотр рекламы</h3>
+            <h3 class="uz hidden">Reklama Ko'rish</h3>
+            <p class="en">Tracks ad views and clicks.</p>
+            <p class="ru hidden">Отслеживает просмотры и клики по рекламе.</p>
+            <p class="uz hidden">Reklama ko'rish va bosishlarni kuzatib boradi.</p>
+            <pre>class AdImpression(models.Model): ...</pre>
+            <p class="en">Fields: ad, user, anonymous_session, anime, episode, clicked, viewed_at, ip_address.</p>
+            <p class="ru hidden">Поля: ad, user, anonymous_session, anime, episode, clicked, viewed_at, ip_address.</p>
+            <p class="uz hidden">Maydonlar: ad, user, anonymous_session, anime, episode, clicked, viewed_at, ip_address.</p>
+        </div>
+
+        <div class="subsection">
+            <h3 class="en">Favorite</h3>
+            <h3 class="ru hidden">Избранное</h3>
+            <h3 class="uz hidden">Sevimli</h3>
+            <p class="en">User favorites.</p>
+            <p class="ru hidden">Избранное пользователя.</p>
+            <p class="uz hidden">Foydalanuvchi sevimlilari.</p>
+            <pre>class Favorite(models.Model): ...</pre>
+            <p class="en">Fields: user, anonymous_session, anime, added_at.</p>
+            <p class="ru hidden">Поля: user, anonymous_session, anime, added_at.</p>
+            <p class="uz hidden">Maydonlar: user, anonymous_session, anime, added_at.</p>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2 class="en">API Endpoints</h2>
+        <h2 class="ru hidden">API Endpoints</h2>
+        <h2 class="uz hidden">API Endpointlari</h2>
+
+        <div class="subsection">
+            <h3 class="en">POST /register/</h3>
+            <h3 class="ru hidden">POST /register/</h3>
+            <h3 class="uz hidden">POST /register/</h3>
+            <p class="en">Register a new user.</p>
+            <p class="ru hidden">Регистрация нового пользователя.</p>
+            <p class="uz hidden">Yangi foydalanuvchini ro'yxatdan o'tkazish.</p>
+            <p class="en">Request Body Example:</p>
+            <p class="ru hidden">Пример тела запроса:</p>
+            <p class="uz hidden">So'rov Tanasi Misoli:</p>
+            <pre>{
+  "email": "user@example.com",
+  "password": "password123",
+  "full_name": "John Doe"
+}</pre>
+            <p class="en">Response Example (201 Created):</p>
+            <p class="ru hidden">Пример ответа (201 Created):</p>
+            <p class="uz hidden">Javob Misoli (201 Yaratildi):</p>
+            <pre>{
+  "success": true,
+  "data": {
+    "id": 1,
+    "email": "user@example.com",
+    "full_name": "John Doe"
+  },
+  "message": "User registered successfully"
+}</pre>
+        </div>
+
+        <div class="subsection">
+            <h3 class="en">POST /login/</h3>
+            <h3 class="ru hidden">POST /login/</h3>
+            <h3 class="uz hidden">POST /login/</h3>
+            <p class="en">Login user and get JWT tokens.</p>
+            <p class="ru hidden">Вход пользователя и получение JWT токенов.</p>
+            <p class="uz hidden">Foydalanuvchi kirishi va JWT tokenlarini olish.</p>
+            <p class="en">Request Body Example:</p>
+            <p class="ru hidden">Пример тела запроса:</p>
+            <p class="uz hidden">So'rov Tanasi Misoli:</p>
+            <pre>{
+  "email": "user@example.com",
+  "password": "password123"
+}</pre>
+            <p class="en">Response Example (200 OK):</p>
+            <p class="ru hidden">Пример ответа (200 OK):</p>
+            <p class="uz hidden">Javob Misoli (200 OK):</p>
+            <pre>{
+  "success": true,
+  "data": {
+    "access": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+    "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+    "user": {
+      "id": 1,
+      "email": "user@example.com"
+    }
+  },
+  "message": "Login successful"
+}</pre>
+        </div>
+
+        <div class="subsection">
+            <h3 class="en">GET/PATCH /me/</h3>
+            <h3 class="ru hidden">GET/PATCH /me/</h3>
+            <h3 class="uz hidden">GET/PATCH /me/</h3>
+            <p class="en">Get or update current user profile (authenticated).</p>
+            <p class="ru hidden">Получение или обновление профиля текущего пользователя (аутентифицировано).</p>
+            <p class="uz hidden">Joriy foydalanuvchi profilini olish yoki yangilash (autentifikatsiyalangan).</p>
+            <p class="en">Request Body Example (PATCH):</p>
+            <p class="ru hidden">Пример тела запроса (PATCH):</p>
+            <p class="uz hidden">So'rov Tanasi Misoli (PATCH):</p>
+            <pre>{
+  "full_name": "Updated Name"
+}</pre>
+            <p class="en">Response Example (GET/200 OK):</p>
+            <p class="ru hidden">Пример ответа (GET/200 OK):</p>
+            <p class="uz hidden">Javob Misoli (GET/200 OK):</p>
+            <pre>{
+  "success": true,
+  "data": {
+    "email": "user@example.com",
+    "full_name": "John Doe"
+  },
+  "message": "Current user info"
+}</pre>
+        </div>
+
+        <div class="subsection">
+            <h3 class="en">POST /logout/</h3>
+            <h3 class="ru hidden">POST /logout/</h3>
+            <h3 class="uz hidden">POST /logout/</h3>
+            <p class="en">Logout by blacklisting refresh token (authenticated).</p>
+            <p class="ru hidden">Выход путем добавления refresh токена в черный список (аутентифицировано).</p>
+            <p class="uz hidden">Refresh tokenni qora ro'yxatga qo'shish orqali chiqish (autentifikatsiyalangan).</p>
+            <p class="en">Request Body Example:</p>
+            <p class="ru hidden">Пример тела запроса:</p>
+            <p class="uz hidden">So'rov Tanasi Misoli:</p>
+            <pre>{
+  "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+}</pre>
+            <p class="en">Response Example (200 OK):</p>
+            <p class="ru hidden">Пример ответа (200 OK):</p>
+            <p class="uz hidden">Javob Misoli (200 OK):</p>
+            <pre>{
+  "success": true,
+  "message": "Successfully logged out"
+}</pre>
+        </div>
+
+        <div class="subsection">
+            <h3 class="en">GET /animes/</h3>
+            <h3 class="ru hidden">GET /animes/</h3>
+            <h3 class="uz hidden">GET /animes/</h3>
+            <p class="en">List published anime with filters, search, ordering, and pagination.</p>
+            <p class="ru hidden">Список опубликованных аниме с фильтрами, поиском, сортировкой и пагинацией.</p>
+            <p class="uz hidden">Nashr etilgan animelarni filtrlar, qidiruv, tartiblash va sahifalash bilan ro'yxatlash.</p>
+            <p class="en">Example Query Params: ?type=TV&status=ONGOING&search=title&ordering=-release_year</p>
+            <p class="ru hidden">Пример параметров запроса: ?type=TV&status=ONGOING&search=title&ordering=-release_year</p>
+            <p class="uz hidden">So'rov Parametrlari Misoli: ?type=TV&status=ONGOING&search=title&ordering=-release_year</p>
+            <p class="en">Response Example (200 OK):</p>
+            <p class="ru hidden">Пример ответа (200 OK):</p>
+            <p class="uz hidden">Javob Misoli (200 OK):</p>
+            <pre>{
+  "success": true,
+  "data": [
+    {"id": 1, "title": "Anime Title", "slug": "anime-title", ...}
+  ],
+  "message": "Anime list retrieved",
+  "meta": {"count": 10, "next": "/api/animes/?page=2", "previous": null}
+}</pre>
+        </div>
+
+        <div class="subsection">
+            <h3 class="en">GET /animes/&lt;int:pk&gt;/</h3>
+            <h3 class="ru hidden">GET /animes/&lt;int:pk&gt;/</h3>
+            <h3 class="uz hidden">GET /animes/&lt;int:pk&gt;/</h3>
+            <p class="en">Retrieve details of a specific published anime by ID.</p>
+            <p class="ru hidden">Получение деталей конкретного опубликованного аниме по ID.</p>
+            <p class="uz hidden">Muayyan nashr etilgan animening tafsilotlarini ID bo'yicha olish.</p>
+            <p class="en">Response Example (200 OK):</p>
+            <p class="ru hidden">Пример ответа (200 OK):</p>
+            <p class="uz hidden">Javob Misoli (200 OK):</p>
+            <pre>{
+  "success": true,
+  "data": {"id": 1, "title": "Anime Title", ...},
+  "message": "Anime details retrieved"
+}</pre>
+            <p class="en">Error Response Example (404 Not Found):</p>
+            <p class="ru hidden">Пример ошибки (404 Not Found):</p>
+            <p class="uz hidden">Xato Javob Misoli (404 Topilmadi):</p>
+            <pre>{
+  "success": false,
+  "message": "Anime not found"
+}</pre>
+        </div>
+
+        <div class="subsection">
+            <h3 class="en">GET /animes/&lt;str:anime_identifier&gt;/episodes/</h3>
+            <h3 class="ru hidden">GET /animes/&lt;str:anime_identifier&gt;/episodes/</h3>
+            <h3 class="uz hidden">GET /animes/&lt;str:anime_identifier&gt;/episodes/</h3>
+            <p class="en">List episodes for a specific anime (by ID or slug) with filters and pagination.</p>
+            <p class="ru hidden">Список эпизодов для конкретного аниме (по ID или slug) с фильтрами и пагинацией.</p>
+            <p class="uz hidden">Muayyan anime uchun epizodlarni (ID yoki slug bo'yicha) filtrlar va sahifalash bilan ro'yxatlash.</p>
+            <p class="en">Example Query Params: ?episode_number__gt=5&ordering=air_date</p>
+            <p class="ru hidden">Пример параметров запроса: ?episode_number__gt=5&ordering=air_date</p>
+            <p class="uz hidden">So'rov Parametrlari Misoli: ?episode_number__gt=5&ordering=air_date</p>
+            <p class="en">Response Example (200 OK):</p>
+            <p class="ru hidden">Пример ответа (200 OK):</p>
+            <p class="uz hidden">Javob Misoli (200 OK):</p>
+            <pre>{
+  "success": true,
+  "data": [
+    {"id": 1, "episode_number": 1, "title": "Episode 1", ...}
+  ],
+  "message": "Episodes retrieved",
+  "meta": {"count": 5, "next": null, "previous": null}
+}</pre>
+        </div>
+
+        <div class="subsection">
+            <h3 class="en">GET /animes/&lt;str:anime_identifier&gt;/episodes/&lt;str:episode_identifier&gt;/</h3>
+            <h3 class="ru hidden">GET /animes/&lt;str:anime_identifier&gt;/episodes/&lt;str:episode_identifier&gt;/</h3>
+            <h3 class="uz hidden">GET /animes/&lt;str:anime_identifier&gt;/episodes/&lt;str:episode_identifier&gt;/</h3>
+            <p class="en">Retrieve details of a specific episode (by ID or slug) for an anime.</p>
+            <p class="ru hidden">Получение деталей конкретного эпизода (по ID или slug) для аниме.</p>
+            <p class="uz hidden">Anime uchun muayyan epizod tafsilotlarini (ID yoki slug bo'yicha) olish.</p>
+            <p class="en">Response Example (200 OK):</p>
+            <p class="ru hidden">Пример ответа (200 OK):</p>
+            <p class="uz hidden">Javob Misoli (200 OK):</p>
+            <pre>{
+  "success": true,
+  "data": {"id": 1, "episode_number": 1, "title": "Episode 1", ...},
+  "message": "Episode details retrieved"
+}</pre>
+        </div>
+
+        <div class="subsection">
+            <h3 class="en">POST /animes/&lt;str:anime_identifier&gt;/episodes/&lt;str:episode_identifier&gt;/watch/</h3>
+            <h3 class="ru hidden">POST /animes/&lt;str:anime_identifier&gt;/episodes/&lt;str:episode_identifier&gt;/watch/</h3>
+            <h3 class="uz hidden">POST /animes/&lt;str:anime_identifier&gt;/episodes/&lt;str:episode_identifier&gt;/watch/</h3>
+            <p class="en">Record watch history for an episode (authenticated or anonymous).</p>
+            <p class="ru hidden">Запись истории просмотра для эпизода (аутентифицировано или анонимно).</p>
+            <p class="uz hidden">Epizod uchun ko'rish tarixini yozib olish (autentifikatsiyalangan yoki anonim).</p>
+            <p class="en">Request Body Example:</p>
+            <p class="ru hidden">Пример тела запроса:</p>
+            <p class="uz hidden">So'rov Tanasi Misoli:</p>
+            <pre>{
+  "watch_duration_seconds": 300,
+  "completed": true
+}</pre>
+            <p class="en">Response Example (201 Created or 200 OK):</p>
+            <p class="ru hidden">Пример ответа (201 Created или 200 OK):</p>
+            <p class="uz hidden">Javob Misoli (201 Yaratildi yoki 200 OK):</p>
+            <pre>{
+  "success": true,
+  "message": "Watch history recorded successfully"
+}</pre>
+        </div>
+
+        <div class="subsection">
+            <h3 class="en">GET /genres/</h3>
+            <h3 class="ru hidden">GET /genres/</h3>
+            <h3 class="uz hidden">GET /genres/</h3>
+            <p class="en">List all genres with search, ordering, and pagination.</p>
+            <p class="ru hidden">Список всех жанров с поиском, сортировкой и пагинацией.</p>
+            <p class="uz hidden">Barcha janrlarni qidiruv, tartiblash va sahifalash bilan ro'yxatlash.</p>
+            <p class="en">Example Query Params: ?search=action&ordering=name</p>
+            <p class="ru hidden">Пример параметров запроса: ?search=action&ordering=name</p>
+            <p class="uz hidden">So'rov Parametrlari Misoli: ?search=action&ordering=name</p>
+            <p class="en">Response Example (200 OK):</p>
+            <p class="ru hidden">Пример ответа (200 OK):</p>
+            <p class="uz hidden">Javob Misoli (200 OK):</p>
+            <pre>{
+  "success": true,
+  "data": [
+    {"id": 1, "name": "Action", "slug": "action", ...}
+  ],
+  "message": "Genres retrieved"
+}</pre>
+        </div>
+
+        <div class="subsection">
+            <h3 class="en">GET /genres/&lt;str:identifier&gt;/</h3>
+            <h3 class="ru hidden">GET /genres/&lt;str:identifier&gt;/</h3>
+            <h3 class="uz hidden">GET /genres/&lt;str:identifier&gt;/</h3>
+            <p class="en">Retrieve details of a specific genre (by ID or slug).</p>
+            <p class="ru hidden">Получение деталей конкретного жанра (по ID или slug).</p>
+            <p class="uz hidden">Muayyan janr tafsilotlarini (ID yoki slug bo'yicha) olish.</p>
+            <p class="en">Response Example (200 OK):</p>
+            <p class="ru hidden">Пример ответа (200 OK):</p>
+            <p class="uz hidden">Javob Misoli (200 OK):</p>
+            <pre>{
+  "success": true,
+  "data": {"id": 1, "name": "Action", ...},
+  "message": "Genre details retrieved"
+}</pre>
+        </div>
+
+        <div class="subsection">
+            <h3 class="en">GET /genres/&lt;str:identifier&gt;/animes/</h3>
+            <h3 class="ru hidden">GET /genres/&lt;str:identifier&gt;/animes/</h3>
+            <h3 class="uz hidden">GET /genres/&lt;str:identifier&gt;/animes/</h3>
+            <p class="en">List anime for a specific genre (by ID or slug) with filters and pagination.</p>
+            <p class="ru hidden">Список аниме для конкретного жанра (по ID или slug) с фильтрами и пагинацией.</p>
+            <p class="uz hidden">Muayyan janr uchun animelarni (ID yoki slug bo'yicha) filtrlar va sahifalash bilan ro'yxatlash.</p>
+            <p class="en">Response Example (200 OK):</p>
+            <p class="ru hidden">Пример ответа (200 OK):</p>
+            <p class="uz hidden">Javob Misoli (200 OK):</p>
+            <pre>{
+  "success": true,
+  "data": [
+    {"id": 1, "title": "Action Anime", ...}
+  ],
+  "message": "Anime list retrieved"
+}</pre>
+        </div>
+
+        <div class="subsection">
+            <h3 class="en">POST /animes/&lt;str:anime_identifier&gt;/like/</h3>
+            <h3 class="ru hidden">POST /animes/&lt;str:anime_identifier&gt;/like/</h3>
+            <h3 class="uz hidden">POST /animes/&lt;str:anime_identifier&gt;/like/</h3>
+            <p class="en">Toggle like/dislike for an anime (authenticated or anonymous).</p>
+            <p class="ru hidden">Переключение лайка/дизлайка для аниме (аутентифицировано или анонимно).</p>
+            <p class="uz hidden">Anime uchun layk/dizlaykni o'zgartirish (autentifikatsiyalangan yoki anonim).</p>
+            <p class="en">Request Body Example:</p>
+            <p class="ru hidden">Пример тела запроса:</p>
+            <p class="uz hidden">So'rov Tanasi Misoli:</p>
+            <pre>{
+  "is_like": true
+}</pre>
+            <p class="en">Response Example (201 Created):</p>
+            <p class="ru hidden">Пример ответа (201 Created):</p>
+            <p class="uz hidden">Javob Misoli (201 Yaratildi):</p>
+            <pre>{
+  "success": true,
+  "data": {"action": "created", "is_like": true},
+  "message": "Like added successfully"
+}</pre>
+        </div>
+
+        <div class="subsection">
+            <h3 class="en">POST /animes/&lt;str:anime_identifier&gt;/episodes/&lt;str:episode_identifier&gt;/like/</h3>
+            <h3 class="ru hidden">POST /animes/&lt;str:anime_identifier&gt;/episodes/&lt;str:episode_identifier&gt;/like/</h3>
+            <h3 class="uz hidden">POST /animes/&lt;str:anime_identifier&gt;/episodes/&lt;str:episode_identifier&gt;/like/</h3>
+            <p class="en">Toggle like/dislike for an episode (authenticated or anonymous).</p>
+            <p class="ru hidden">Переключение лайка/дизлайка для эпизода (аутентифицировано или анонимно).</p>
+            <p class="uz hidden">Epizod uchun layk/dizlaykni o'zgartirish (autentifikatsiyalangan yoki anonim).</p>
+            <p class="en">Request Body Example:</p>
+            <p class="ru hidden">Пример тела запроса:</p>
+            <p class="uz hidden">So'rov Tanasi Misoli:</p>
+            <pre>{
+  "is_like": false
+}</pre>
+            <p class="en">Response Example (200 OK):</p>
+            <p class="ru hidden">Пример ответа (200 OK):</p>
+            <p class="uz hidden">Javob Misoli (200 OK):</p>
+            <pre>{
+  "success": true,
+  "data": {"action": "updated", "is_like": false},
+  "message": "Like updated successfully"
+}</pre>
+        </div>
+
+        <div class="subsection">
+            <h3 class="en">GET/POST /animes/&lt;str:anime_identifier&gt;/comments/</h3>
+            <h3 class="ru hidden">GET/POST /animes/&lt;str:anime_identifier&gt;/comments/</h3>
+            <h3 class="uz hidden">GET/POST /animes/&lt;str:anime_identifier&gt;/comments/</h3>
+            <p class="en">List or create comments for an anime (authenticated or anonymous for POST).</p>
+            <p class="ru hidden">Список или создание комментариев для аниме (аутентифицировано или анонимно для POST).</p>
+            <p class="uz hidden">Anime uchun izohlarni ro'yxatlash yoki yaratish (POST uchun autentifikatsiyalangan yoki anonim).</p>
+            <p class="en">Request Body Example (POST):</p>
+            <p class="ru hidden">Пример тела запроса (POST):</p>
+            <p class="uz hidden">So'rov Tanasi Misoli (POST):</p>
+            <pre>{
+  "comment": "Great anime!",
+  "parent": 1
+}</pre>
+            <p class="en">Response Example (GET/200 OK):</p>
+            <p class="ru hidden">Пример ответа (GET/200 OK):</p>
+            <p class="uz hidden">Javob Misoli (GET/200 OK):</p>
+            <pre>{
+  "success": true,
+  "data": [
+    {"id": 1, "comment": "Great anime!", ...}
+  ],
+  "message": "Comments retrieved"
+}</pre>
+        </div>
+
+        <div class="subsection">
+            <h3 class="en">GET/POST /animes/&lt;str:anime_identifier&gt;/episodes/&lt;str:episode_identifier&gt;/comments/</h3>
+            <h3 class="ru hidden">GET/POST /animes/&lt;str:anime_identifier&gt;/episodes/&lt;str:episode_identifier&gt;/comments/</h3>
+            <h3 class="uz hidden">GET/POST /animes/&lt;str:anime_identifier&gt;/episodes/&lt;str:episode_identifier&gt;/comments/</h3>
+            <p class="en">List or create comments for an episode (authenticated or anonymous for POST).</p>
+            <p class="ru hidden">Список или создание комментариев для эпизода (аутентифицировано или анонимно для POST).</p>
+            <p class="uz hidden">Epizod uchun izohlarni ro'yxatlash yoki yaratish (POST uchun autentifikatsiyalangan yoki anonim).</p>
+            <p class="en">Request Body Example (POST):</p>
+            <p class="ru hidden">Пример тела запроса (POST):</p>
+            <p class="uz hidden">So'rov Tanasi Misoli (POST):</p>
+            <pre>{
+  "comment": "Awesome episode!"
+}</pre>
+            <p class="en">Response Example (POST/201 Created):</p>
+            <p class="ru hidden">Пример ответа (POST/201 Created):</p>
+            <p class="uz hidden">Javob Misoli (POST/201 Yaratildi):</p>
+            <pre>{
+  "success": true,
+  "data": {"id": 2, "comment": "Awesome episode!", ...},
+  "message": "Comment posted successfully"
+}</pre>
+        </div>
+
+        <div class="subsection">
+            <h3 class="en">PUT/DELETE /comments/&lt;int:comment_id&gt;/</h3>
+            <h3 class="ru hidden">PUT/DELETE /comments/&lt;int:comment_id&gt;/</h3>
+            <h3 class="uz hidden">PUT/DELETE /comments/&lt;int:comment_id&gt;/</h3>
+            <p class="en">Update or delete a comment (authenticated or anonymous, owner only).</p>
+            <p class="ru hidden">Обновление или удаление комментария (аутентифицировано или анонимно, только владелец).</p>
+            <p class="uz hidden">Izohni yangilash yoki o'chirish (autentifikatsiyalangan yoki anonim, faqat egasi).</p>
+            <p class="en">Request Body Example (PUT):</p>
+            <p class="ru hidden">Пример тела запроса (PUT):</p>
+            <p class="uz hidden">So'rov Tanasi Misoli (PUT):</p>
+            <pre>{
+  "comment": "Updated comment"
+}</pre>
+            <p class="en">Response Example (PUT/200 OK):</p>
+            <p class="ru hidden">Пример ответа (PUT/200 OK):</p>
+            <p class="uz hidden">Javob Misoli (PUT/200 OK):</p>
+            <pre>{
+  "success": true,
+  "data": {"id": 1, "comment": "Updated comment", ...},
+  "message": "Comment updated successfully"
+}</pre>
+            <p class="en">Response Example (DELETE/200 OK):</p>
+            <p class="ru hidden">Пример ответа (DELETE/200 OK):</p>
+            <p class="uz hidden">Javob Misoli (DELETE/200 OK):</p>
+            <pre>{
+  "success": true,
+  "message": "Comment deleted successfully"
+}</pre>
+        </div>
+
+        <div class="subsection">
+            <h3 class="en">POST/DELETE /animes/&lt;str:anime_identifier&gt;/favorite/</h3>
+            <h3 class="ru hidden">POST/DELETE /animes/&lt;str:anime_identifier&gt;/favorite/</h3>
+            <h3 class="uz hidden">POST/DELETE /animes/&lt;str:anime_identifier&gt;/favorite/</h3>
+            <p class="en">Add or remove anime from favorites (authenticated or anonymous).</p>
+            <p class="ru hidden">Добавление или удаление аниме из избранного (аутентифицировано или анонимно).</p>
+            <p class="uz hidden">Animeni sevimlilarga qo'shish yoki olib tashlash (autentifikatsiyalangan yoki anonim).</p>
+            <p class="en">Response Example (POST/201 Created):</p>
+            <p class="ru hidden">Пример ответа (POST/201 Created):</p>
+            <p class="uz hidden">Javob Misoli (POST/201 Yaratildi):</p>
+            <pre>{
+  "success": true,
+  "message": "Anime added to favorites"
+}</pre>
+            <p class="en">Response Example (DELETE/200 OK):</p>
+            <p class="ru hidden">Пример ответа (DELETE/200 OK):</p>
+            <p class="uz hidden">Javob Misoli (DELETE/200 OK):</p>
+            <pre>{
+  "success": true,
+  "message": "Anime removed from favorites"
+}</pre>
+        </div>
+
+        <div class="subsection">
+            <h3 class="en">GET /favorites/</h3>
+            <h3 class="ru hidden">GET /favorites/</h3>
+            <h3 class="uz hidden">GET /favorites/</h3>
+            <p class="en">List user's or anonymous session's favorite anime with pagination.</p>
+            <p class="ru hidden">Список избранных аниме пользователя или анонимной сессии с пагинацией.</p>
+            <p class="uz hidden">Foydalanuvchi yoki anonim sessiyaning sevimli animelarini sahifalash bilan ro'yxatlash.</p>
+            <p class="en">Response Example (200 OK):</p>
+            <p class="ru hidden">Пример ответа (200 OK):</p>
+            <p class="uz hidden">Javob Misoli (200 OK):</p>
+            <pre>{
+  "success": true,
+  "data": [
+    {"id": 1, "title": "Favorite Anime", ...}
+  ],
+  "message": "Favorite anime retrieved"
+}</pre>
+        </div>
+    </div>
+
+    <footer>Made by [Team Name]</footer>
+
+    <script>
+        function switchTheme() {
+            document.body.classList.toggle('light');
+            document.body.classList.toggle('dark');
+        }
+
+        function switchLanguage(lang) {
+            document.querySelectorAll('.en, .ru, .uz').forEach(el => {
+                el.classList.add('hidden');
+            });
+            document.querySelectorAll('.' + lang).forEach(el => {
+                el.classList.remove('hidden');
+            });
+        }
+
+        // Interactive Background
+        const canvas = document.getElementById('backgroundCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const particles = [];
+        const particleCount = 100;
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 5 + 1;
+                this.speedX = Math.random() * 3 - 1.5;
+                this.speedY = Math.random() * 3 - 1.5;
+            }
+
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+
+                if (this.size > 0.2) this.size -= 0.01;
+
+                if (this.x < 0 || this.x > canvas.width) this.speedX *= -1;
+                if (this.y < 0 || this.y > canvas.height) this.speedY *= -1;
+            }
+
+            draw() {
+                ctx.fillStyle = 'rgba(255, 75, 145, 0.5)';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function init() {
+            for (let i = 0; i < particleCount; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+                particles.forEach(p2 => {
+                    const dx = p.x - p2.x;
+                    const dy = p.y - p2.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance < 100) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = 'rgba(0, 240, 255, 0.2)';
+                        ctx.lineWidth = 1;
+                        ctx.moveTo(p.x, p.y);
+                        ctx.lineTo(p2.x, p2.y);
+                        ctx.stroke();
+                    }
+                });
+            });
+            requestAnimationFrame(animate);
+        }
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        init();
+        animate();
+    </script>
+</body>
+</html>

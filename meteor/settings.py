@@ -24,9 +24,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-)_@^*)a^&dn(=0eq*&)h=fj+gjjv=hos^44hl^v5s-*7+3=ifs'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['meteordub.uz', 'www.meteordub.uz', '127.0.0.1', '176.96.243.178']
+
 
 
 # Application definition
@@ -42,6 +43,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'user_side',
+    'docs'
 ]
 
 MIDDLEWARE = [
@@ -152,4 +154,8 @@ AUTH_USER_MODEL = 'user_side.User'
 
 
 MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_ROOT = BASE_DIR / 'media'

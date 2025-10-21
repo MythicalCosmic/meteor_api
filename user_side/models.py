@@ -44,6 +44,9 @@ class User(AbstractBaseUser, PermissionsMixin):
             models.UniqueConstraint(fields=['email'], name='user_email_unique')
         ]
 
+    def __str__(self):
+        return f"{self.full_name} ({self.email})"
+
 class AnonymousSession(models.Model):
     session_token = models.CharField(max_length=100)
     fingerprint_hash = models.TextField()
@@ -58,6 +61,9 @@ class AnonymousSession(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['session_token'], name='anonymoussession_session_token_unique')
         ]
+
+    def __str__(self):
+        return f"Session {self.session_token[:8]}... ({self.country})"
 
 class Genre(models.Model):
     name = models.CharField(max_length=100) 
@@ -101,18 +107,18 @@ class Anime(models.Model):
     total_episodes = models.IntegerField()
     duration_minutes = models.IntegerField()
     release_year = models.IntegerField()
-    season = models.TextField()
+    season = models.CharField(max_length=50)
     poster_url = models.FileField(upload_to='media/anime/posters/')
     banner_url = models.FileField(upload_to='media/anime/banners/')
     trailer_url = models.FileField(upload_to='media/anime/trailers/')
-    rating = models.FloatField()
-    total_views = models.IntegerField()
-    total_favorites = models.IntegerField()
-    total_likes = models.IntegerField()
-    total_comments = models.IntegerField()
+    rating = models.FloatField(null=True, blank=True)
+    total_views = models.IntegerField(default=0)
+    total_favorites = models.IntegerField(default=0)
+    total_likes = models.IntegerField(default=0)
+    total_comments = models.IntegerField(default=0)
     is_premium_only = models.BooleanField(default=False) 
     is_published = models.BooleanField(default=False)  
-    published_at = models.DateTimeField()
+    published_at = models.DateTimeField(auto_now_add=True)
     genres = models.ManyToManyField(Genre, related_name='animes') 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now_add=True)
@@ -125,19 +131,22 @@ class Anime(models.Model):
             models.UniqueConstraint(fields=['slug'], name='anime_slug_unique')
         ]
 
+    def __str__(self):
+        return f"{self.title} ({self.release_year}) - {self.get_status_display()}"
+
 class Episode(models.Model):
-    anime = models.ForeignKey(Anime, on_delete=models.CASCADE)
+    anime = models.ForeignKey(Anime, on_delete=models.CASCADE, related_name='episodes')
     episode_number = models.IntegerField()
     title = models.CharField(max_length=50)
     title_ru = models.CharField(max_length=50, blank=True, null=True)
     slug = models.SlugField(unique=True)
     description = models.TextField()
-    total_likes = models.IntegerField()
+    total_likes = models.IntegerField(default=0)
     thumbnail_url = models.FileField(upload_to='media/episodes/thumbnails/')
-    duration_seconds = models.BigIntegerField()
+    duration_seconds = models.BigIntegerField(blank=True, null=True)
     air_date = models.DateTimeField()
     is_premium_only = models.BooleanField(default=False) 
-    total_views = models.IntegerField()
+    total_views = models.IntegerField(null=True, blank=True)
     is_published = models.BooleanField(default=False) 
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -145,15 +154,45 @@ class Episode(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['anime', 'episode_number'], name='episode_number_unique_per_anime')
         ]
+        ordering = ['anime', 'episode_number']
+
+    def __str__(self):
+        return f"{self.anime.title} - Ep {self.episode_number}: {self.title}"
 
 class EpisodeLanguage(models.Model):
-    episode = models.ForeignKey(Episode, on_delete=models.CASCADE)
-    language = models.CharField(max_length=50, default='uzbek')
+    LANGUAGE_CHOICES = [
+        ('uzbek', 'O\'zbek tili'),
+        ('russian', 'Русский язык'),
+        ('english', 'English'),
+        ('japanese', '日本語'),
+    ]
+    
+    QUALITY_CHOICES = [
+        ('360p', '360p'),
+        ('480p', '480p'),
+        ('720p', '720p HD'),
+        ('1080p', '1080p Full HD'),
+        ('1440p', '1440p 2K'),
+        ('2160p', '2160p 4K'),
+    ]
+    
+    episode = models.ForeignKey(Episode, on_delete=models.CASCADE, related_name='languages')
+    language = models.CharField(max_length=50, choices=LANGUAGE_CHOICES, default='uzbek')
     video_url = models.FileField(upload_to='media/episodes/videos/')
-    video_quality = models.CharField(max_length=50, default='1080p')
+    video_quality = models.CharField(max_length=50, choices=QUALITY_CHOICES, default='1080p')
     file_size_mb = models.CharField(max_length=50)
     is_default = models.BooleanField(default=False)  
     created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = "Video Track"
+        verbose_name_plural = "Video Tracks"
+        ordering = ['language', '-video_quality']
+    
+    def __str__(self):
+        lang_display = dict(self.LANGUAGE_CHOICES).get(self.language, self.language)
+        return f"{self.episode.anime.title} - Ep {self.episode.episode_number} ({lang_display} - {self.video_quality})"
+    
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs) 
         if self.video_url:
@@ -185,6 +224,8 @@ class WatchHistory(models.Model):
     country = models.CharField(max_length=2, default='UZ')  
 
     class Meta:
+        verbose_name = "Watch History"
+        verbose_name_plural = "Watch Histories"
         constraints = [
             models.CheckConstraint(
                 check=models.Q(user__isnull=False, anonymous_session__isnull=True) |
@@ -208,6 +249,11 @@ class WatchHistory(models.Model):
             models.Index(fields=['anime', 'watched_at']),
             models.Index(fields=['episode', 'watched_at'])
         ]
+
+    def __str__(self):
+        user_str = self.user.email if self.user else f"Guest Session"
+        completion = "✓ Completed" if self.completed else "In Progress"
+        return f"{user_str} watched {self.episode} - {completion}"
 
     def save(self, *args, **kwargs):
         if not self.watched_at:
@@ -255,8 +301,9 @@ class Like(models.Model):
 
     def __str__(self):
         target = self.episode or self.anime
-        user_str = self.user.username if self.user else f"Anon-{self.anonymous_session_id}"
-        return f"{user_str} {'liked' if self.is_like else 'disliked'} {target}"
+        user_str = self.user.email if self.user else f"Guest"
+        reaction = "👍 Liked" if self.is_like else "👎 Disliked"
+        return f"{user_str} {reaction} {target}"
 
 
 class Comment(models.Model):
@@ -281,62 +328,116 @@ class Comment(models.Model):
         ]
 
     def __str__(self):
-        user_str = self.user.username if self.user else (self.guest_name or f"Anon-{self.anonymous_session_id}")
+        user_str = self.user.email if self.user else (self.guest_name or "Guest")
         target = self.episode or self.anime
-        return f"{user_str} commented on {target}"
+        comment_preview = self.comment[:50] + "..." if len(self.comment) > 50 else self.comment
+        return f"{user_str} on {target}: {comment_preview}"
 
     @property
     def author_name(self):
         if self.user:
-            return self.user.username
+            return self.user.full_name
         return self.guest_name or "Anonymous"
 
 class Subscription(models.Model):
+    PLAN_CHOICES = [
+        ('monthly', 'Monthly Premium'),
+        ('quarterly', 'Quarterly Premium'),
+        ('yearly', 'Yearly Premium'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('expired', 'Expired'),
+        ('cancelled', 'Cancelled'),
+        ('pending', 'Pending'),
+    ]
+    
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    plan_type = models.TextField()
+    plan_type = models.TextField(choices=PLAN_CHOICES)
     price = models.FloatField()
     currency = models.TextField()
-    status = models.TextField()
+    status = models.TextField(choices=STATUS_CHOICES)
     starts_at = models.DateTimeField()
     expires_at = models.DateTimeField()
     auto_renew = models.BooleanField(default=False) 
     created_at = models.DateTimeField(auto_now_add=True)
 
+    def __str__(self):
+        return f"{self.user.email} - {self.get_plan_type_display()} ({self.get_status_display()})"
+
 class Payment(models.Model):
+    STATUS_CHOICES = [
+        ('completed', 'Completed'),
+        ('pending', 'Pending'),
+        ('failed', 'Failed'),
+        ('refunded', 'Refunded'),
+    ]
+    
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     subscription = models.ForeignKey(Subscription, on_delete=models.CASCADE)
     payment_gateway = models.TextField()
     transaction_id = models.IntegerField()
     amount = models.FloatField()
     currency = models.TextField(default='UZS')
-    status = models.TextField()
+    status = models.TextField(choices=STATUS_CHOICES)
     payment_method = models.TextField()
     paid_at = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
 
+    def __str__(self):
+        return f"Payment #{self.transaction_id} - {self.user.email} - {self.amount} {self.currency} ({self.get_status_display()})"
+
 class Advertisement(models.Model):
+    TYPE_CHOICES = [
+        ('video', 'Video Ad'),
+        ('banner', 'Banner Ad'),
+        ('popup', 'Popup Ad'),
+    ]
+    
+    POSITION_CHOICES = [
+        ('pre_roll', 'Pre-Roll (Before Video)'),
+        ('mid_roll', 'Mid-Roll (During Video)'),
+        ('post_roll', 'Post-Roll (After Video)'),
+        ('sidebar', 'Sidebar'),
+        ('top_banner', 'Top Banner'),
+    ]
+    
     title = models.TextField()
-    type = models.TextField()
+    type = models.TextField(choices=TYPE_CHOICES)
     content_url = models.FileField(upload_to='media/ads/content/')
     html_code = models.TextField()
     duration_seconds = models.IntegerField()
     click_url = models.URLField()
-    position = models.TextField()
+    position = models.TextField(choices=POSITION_CHOICES)
     is_active = models.BooleanField(default=False)  
     priority = models.IntegerField()
     total_impressions = models.IntegerField()
     total_clicks = models.IntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
 
+    def __str__(self):
+        status = "🟢 Active" if self.is_active else "🔴 Inactive"
+        return f"{self.title} ({self.get_type_display()}) - {status}"
+
 class AdImpression(models.Model):
     ad = models.ForeignKey(Advertisement, on_delete=models.CASCADE)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    anonymous_session = models.ForeignKey(AnonymousSession, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    anonymous_session = models.ForeignKey(AnonymousSession, on_delete=models.CASCADE, null=True, blank=True)
     anime = models.ForeignKey(Anime, on_delete=models.CASCADE)
     episode = models.ForeignKey(Episode, on_delete=models.CASCADE)
     clicked = models.BooleanField(default=False)
     viewed_at = models.DateTimeField()
     ip_address = models.TextField()
+
+    class Meta:
+        verbose_name = "Ad Impression"
+        verbose_name_plural = "Ad Impressions"
+
+    def __str__(self):
+        user_str = self.user.email if self.user else "Guest"
+        click_status = "Clicked" if self.clicked else "Viewed"
+        return f"{self.ad.title} - {user_str} ({click_status})"
 
 
 class Favorite(models.Model):
@@ -368,6 +469,10 @@ class Favorite(models.Model):
             models.Index(fields=['anonymous_session', 'anime']),
             models.Index(fields=['anime', 'added_at'])
         ]
+
+    def __str__(self):
+        user_str = self.user.email if self.user else "Guest"
+        return f"⭐ {user_str} favorited {self.anime.title}"
 
     def save(self, *args, **kwargs):
         if not self.added_at:
