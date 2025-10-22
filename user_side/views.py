@@ -23,13 +23,20 @@ from rest_framework import status
 import logging
 logger = logging.getLogger(__name__)
 
+
 class RegisterView(APIView):
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
+            refresh = RefreshToken.for_user(user)  
+            
             return created_response(
-                data=UserSerializer(user).data,
+                data={
+                    "access": str(refresh.access_token),
+                    "refresh": str(refresh),
+                    "user": UserSerializer(user).data
+                },
                 message="User registered successfully"
             )
         return validation_error_response(
