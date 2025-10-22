@@ -111,7 +111,7 @@ class Anime(models.Model):
     poster_url = models.FileField(upload_to='media/anime/posters/')
     banner_url = models.FileField(upload_to='media/anime/banners/')
     trailer_url = models.FileField(upload_to='media/anime/trailers/')
-    rating = models.FloatField(null=True, blank=True)
+    rating = models.FloatField(default=8)
     total_views = models.IntegerField(default=0)
     total_favorites = models.IntegerField(default=0)
     total_likes = models.IntegerField(default=0)

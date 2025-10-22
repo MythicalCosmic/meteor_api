@@ -24,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-)_@^*)a^&dn(=0eq*&)h=fj+gjjv=hos^44hl^v5s-*7+3=ifs'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['meteordub.uz', 'www.meteordub.uz', '127.0.0.1', '176.96.243.178']
 
@@ -33,7 +33,8 @@ ALLOWED_HOSTS = ['meteordub.uz', 'www.meteordub.uz', '127.0.0.1', '176.96.243.17
 # Application definition
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
+    'material',          
+    'material.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -41,8 +42,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework_simplejwt',
+    'user_side.apps.UserSideConfig',
     'rest_framework_simplejwt.token_blacklist',
-    'user_side',
     'docs'
 ]
 
@@ -158,4 +159,29 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+BASE_DIR / "admin"
+
+STATIC_URL = '/static/'
+
+
+
 MEDIA_ROOT = BASE_DIR / 'media'
+
+MATERIAL_ADMIN_SITE = {
+    'HEADER': 'Anime Streaming Admin',
+    'TITLE': 'Admin Dashboard',
+
+    'MAIN_BG_COLOR': '#121212',          
+    'MAIN_HOVER_COLOR': '#1f1f1f',      
+    'SECONDARY_BG_COLOR': '#181818',     
+    'MAIN_TEXT_COLOR': '#f5f5f5',        
+    'ACCENT_COLOR': '#ff4b91',           
+    'LINK_COLOR': '#00f0ff',          
+
+    'FAVICON': 'path/to/favicon.ico',
+    'PROFILE_PICTURE': 'back.jpg',
+    'LOGIN_LOGO': 'lo.png',
+
+
+    'SHOW_THEMES': True,               
+}
