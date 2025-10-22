@@ -7,7 +7,7 @@ djangorestframework==3.16.1
 djangorestframework_simplejwt==5.5.1
 imageio==2.37.0
 imageio-ffmpeg==0.6.0
-moviepy @ file:///home/dev/Projects/meteor/moviepy
+moviepy==2.2.1
 numpy==2.2.6
 opencv-python-headless==4.12.0.88
 pillow==11.3.0
