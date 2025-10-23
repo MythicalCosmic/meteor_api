@@ -146,7 +146,7 @@ class Episode(models.Model):
     duration_seconds = models.BigIntegerField(blank=True, null=True)
     air_date = models.DateTimeField()
     is_premium_only = models.BooleanField(default=False) 
-    total_views = models.IntegerField(null=True, blank=True)
+    total_views = models.IntegerField(default=0)
     is_published = models.BooleanField(default=False) 
     created_at = models.DateTimeField(auto_now_add=True)
 
