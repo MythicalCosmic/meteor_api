@@ -145,6 +145,7 @@ class Episode(models.Model):
     thumbnail_url = models.FileField(upload_to='media/episodes/thumbnails/')
     duration_seconds = models.BigIntegerField(blank=True, null=True)
     air_date = models.DateTimeField()
+    total_comments = models.IntegerField(default=0)
     is_premium_only = models.BooleanField(default=False) 
     total_views = models.IntegerField(default=0)
     is_published = models.BooleanField(default=False) 

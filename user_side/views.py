@@ -786,9 +786,10 @@ class CommentListCreateView(AnonymousSessionTrackingMixin, generics.ListAPIView)
         except Exception as e:
             logger.error(f"Failed to create comment: {str(e)}", exc_info=True)
             return error_response(
-                message="Failed to post comment",
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            message="Failed to post comment",
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
 
 
 class CommentDetailView(AnonymousSessionTrackingMixin, APIView):
