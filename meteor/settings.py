@@ -44,7 +44,8 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'user_side.apps.UserSideConfig',
     'rest_framework_simplejwt.token_blacklist',
-    'docs'
+    'docs',
+    'django.contrib.sitemaps',
 ]
 
 MIDDLEWARE = [
