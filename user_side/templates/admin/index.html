@@ -1,0 +1,282 @@
+{% extends "unfold/layouts/base_simple.html" %}
+{% load i18n static %}
+
+{% block content %}
+<div class="p-6 space-y-6">
+    <!-- KPI Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {% for item in kpi %}
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-shadow duration-300">
+            <div class="flex items-center justify-between mb-4">
+                <div class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{{ item.title }}</div>
+                <div class="w-12 h-12 bg-primary-100 dark:bg-primary-900 rounded-lg flex items-center justify-center">
+                    <span class="text-2xl">{{ item.icon }}</span>
+                </div>
+            </div>
+            <div class="text-3xl font-bold text-gray-900 dark:text-white mb-2">{{ item.metric }}</div>
+            {% if item.footer %}
+            <div class="flex items-center text-sm">
+                <span class="text-green-500 dark:text-green-400 font-medium">{{ item.footer }}</span>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Charts -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- User Growth -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-bold text-gray-900 dark:text-white">User Growth</h3>
+                <span class="text-sm text-gray-500 dark:text-gray-400">Last 30 days</span>
+            </div>
+            <div style="height: 300px;">
+                <canvas id="usersChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Top Anime -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-bold text-gray-900 dark:text-white">Top Anime</h3>
+                <span class="text-sm text-gray-500 dark:text-gray-400">Most viewed</span>
+            </div>
+            <div style="height: 300px;">
+                <canvas id="animeChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Anonymous Sessions -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-bold text-gray-900 dark:text-white">Guest Activity</h3>
+                <span class="text-sm text-gray-500 dark:text-gray-400">Last 7 days</span>
+            </div>
+            <div style="height: 300px;">
+                <canvas id="guestChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Recent Episodes -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-bold text-gray-900 dark:text-white">Recent Episodes</h3>
+                <span class="text-sm text-gray-500 dark:text-gray-400">Latest uploads</span>
+            </div>
+            <div class="space-y-3">
+                {% for episode in recent_episodes %}
+                <div class="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200">
+                    <div class="flex-1">
+                        <div class="font-semibold text-gray-900 dark:text-white">{{ episode.anime.title }}</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">Episode {{ episode.number }}</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm font-medium text-primary-600 dark:text-primary-400">{{ episode.views_count }}</div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400">views</div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-center py-8 text-gray-500 dark:text-gray-400">No episodes yet</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+let charts = {};
+
+function getChartColors() {
+    const isDark = sessionStorage.getItem('adminTheme') === 'dark';
+    return {
+        gridColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+        textColor: isDark ? '#e5e7eb' : '#374151',
+        userGrowth: {
+            registered: {
+                borderColor: isDark ? 'rgb(147, 197, 253)' : 'rgb(59, 130, 246)',
+                backgroundColor: isDark ? 'rgba(147, 197, 253, 0.2)' : 'rgba(59, 130, 246, 0.1)',
+            },
+            premium: {
+                borderColor: isDark ? 'rgb(250, 204, 21)' : 'rgb(234, 179, 8)',
+                backgroundColor: isDark ? 'rgba(250, 204, 21, 0.2)' : 'rgba(234, 179, 8, 0.1)',
+            }
+        },
+        animeViews: {
+            backgroundColor: isDark ? 'rgba(147, 197, 253, 0.8)' : 'rgba(59, 130, 246, 0.8)',
+        },
+        guestSessions: {
+            borderColor: isDark ? 'rgb(196, 181, 253)' : 'rgb(168, 85, 247)',
+            backgroundColor: isDark ? 'rgba(196, 181, 253, 0.2)' : 'rgba(168, 85, 247, 0.1)',
+        }
+    };
+}
+
+function createCharts() {
+    const colors = getChartColors();
+
+    const chartDefaults = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                labels: { color: colors.textColor, font: { size: 12 } }
+            }
+        },
+        scales: {
+            y: {
+                grid: { color: colors.gridColor },
+                ticks: { color: colors.textColor },
+                beginAtZero: true,
+                suggestedMin: 0,
+                suggestedMax: 20
+            },
+            x: {
+                grid: { color: colors.gridColor },
+                ticks: { color: colors.textColor }
+            }
+        }
+    };
+
+    // Destroy existing charts
+    Object.values(charts).forEach(chart => {
+        if (chart) {
+            chart.destroy();
+            chart = null;
+        }
+    });
+    charts = {};
+
+    // Reset canvas elements
+    const resetCanvas = (id) => {
+        const canvas = document.getElementById(id);
+        if (canvas) {
+            const context = canvas.getContext('2d');
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+        }
+    };
+    resetCanvas('usersChart');
+    resetCanvas('animeChart');
+    resetCanvas('guestChart');
+
+    // User Growth Chart
+    const usersCanvas = document.getElementById('usersChart');
+    if (usersCanvas) {
+        const userData = {{ user_growth_data|safe }};
+        const userLabels = {{ user_growth_labels|safe }};
+        if (userData.length > 0 && userLabels.length > 0) {
+            charts.users = new Chart(usersCanvas, {
+                type: 'line',
+                data: {
+                    labels: userLabels,
+                    datasets: [{
+                        label: 'Registered Users',
+                        data: userData,
+                        borderColor: colors.userGrowth.registered.borderColor,
+                        backgroundColor: colors.userGrowth.registered.backgroundColor,
+                        tension: 0.4,
+                        fill: true,
+                        borderWidth: 3
+                    }, {
+                        label: 'Premium Users',
+                        data: {{ premium_growth_data|safe }},
+                        borderColor: colors.userGrowth.premium.borderColor,
+                        backgroundColor: colors.userGrowth.premium.backgroundColor,
+                        tension: 0.4,
+                        fill: true,
+                        borderWidth: 3
+                    }]
+                },
+                options: chartDefaults
+            });
+        } else {
+            const context = usersCanvas.getContext('2d');
+            context.fillStyle = colors.textColor;
+            context.textAlign = 'center';
+            context.fillText('No significant data', usersCanvas.width / 2, usersCanvas.height / 2);
+        }
+    }
+
+    // Top Anime Chart
+    const animeCanvas = document.getElementById('animeChart');
+    if (animeCanvas) {
+        const animeData = {{ top_anime_data|safe }};
+        const animeLabels = {{ top_anime_labels|safe }};
+        if (animeData.length > 0 && animeLabels.length > 0) {
+            charts.anime = new Chart(animeCanvas, {
+                type: 'bar',
+                data: {
+                    labels: animeLabels,
+                    datasets: [{
+                        label: 'Views',
+                        data: animeData,
+                        backgroundColor: colors.animeViews.backgroundColor,
+                        borderRadius: 8
+                    }]
+                },
+                options: chartDefaults
+            });
+        } else {
+            const context = animeCanvas.getContext('2d');
+            context.fillStyle = colors.textColor;
+            context.textAlign = 'center';
+            context.fillText('No data available', animeCanvas.width / 2, animeCanvas.height / 2);
+        }
+    }
+
+    // Guest Activity Chart
+    const guestCanvas = document.getElementById('guestChart');
+    if (guestCanvas) {
+        const guestData = {{ guest_data|safe }};
+        const guestLabels = {{ guest_labels|safe }};
+        if (guestData.length > 0 && guestLabels.length > 0) {
+            charts.guest = new Chart(guestCanvas, {
+                type: 'line',
+                data: {
+                    labels: guestLabels,
+                    datasets: [{
+                        label: 'Guest Sessions',
+                        data: guestData,
+                        borderColor: colors.guestSessions.borderColor,
+                        backgroundColor: colors.guestSessions.backgroundColor,
+                        tension: 0.4,
+                        fill: true,
+                        borderWidth: 3
+                    }]
+                },
+                options: chartDefaults
+            });
+        } else {
+            const context = guestCanvas.getContext('2d');
+            context.fillStyle = colors.textColor;
+            context.textAlign = 'center';
+            context.fillText('No data available', guestCanvas.width / 2, guestCanvas.height / 2);
+        }
+    }
+}
+
+// Initialize charts
+createCharts();
+
+// Listen for theme changes via storage event
+window.addEventListener('storage', (e) => {
+    if (e.key === 'adminTheme') {
+        createCharts();
+    }
+});
+
+// Listen for clicks on theme toggle buttons (fallback)
+document.addEventListener('click', (e) => {
+    if (e.target.closest('[class*="theme"]') || e.target.closest('button')) {
+        setTimeout(() => {
+            createCharts();
+        }, 250);
+    }
+});
+</script>
+{% endblock %}

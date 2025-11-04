@@ -114,6 +114,7 @@ class Anime(models.Model):
     rating = models.FloatField(default=8)
     total_views = models.IntegerField(default=0)
     total_favorites = models.IntegerField(default=0)
+    views_count = models.PositiveBigIntegerField(default=0, db_index=True)
     total_likes = models.IntegerField(default=0)
     total_comments = models.IntegerField(default=0)
     is_premium_only = models.BooleanField(default=False) 

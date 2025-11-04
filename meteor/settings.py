@@ -33,8 +33,16 @@ ALLOWED_HOSTS = ['meteordub.uz', 'www.meteordub.uz', '127.0.0.1', '176.96.243.17
 # Application definition
 
 INSTALLED_APPS = [
-    'material',          
-    'material.admin',
+    "unfold", 
+    "unfold.contrib.filters", 
+    "unfold.contrib.forms", 
+    "unfold.contrib.inlines", 
+    "unfold.contrib.import_export", 
+    "unfold.contrib.guardian",  
+    "unfold.contrib.simple_history", 
+    "unfold.contrib.location_field", 
+    "unfold.contrib.constance",
+    'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -88,7 +96,20 @@ DATABASES = {
     }
 }
 
-
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+         'DIRS': [BASE_DIR / 'user_side' / 'templates'],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
@@ -164,25 +185,162 @@ BASE_DIR / "admin"
 
 STATIC_URL = '/static/'
 
+from django.templatetags.static import static
+from django.urls import reverse_lazy
+from django.utils.translation import gettext_lazy as _
 
 
 MEDIA_ROOT = BASE_DIR / 'media'
 
-MATERIAL_ADMIN_SITE = {
-    'HEADER': 'Anime Streaming Admin',
-    'TITLE': 'Admin Dashboard',
-
-    'MAIN_BG_COLOR': '#121212',          
-    'MAIN_HOVER_COLOR': '#1f1f1f',      
-    'SECONDARY_BG_COLOR': '#181818',     
-    'MAIN_TEXT_COLOR': '#f5f5f5',        
-    'ACCENT_COLOR': '#ff4b91',           
-    'LINK_COLOR': '#00f0ff',          
-
-    'FAVICON': 'path/to/favicon.ico',
-    'PROFILE_PICTURE': 'back.jpg',
-    'LOGIN_LOGO': 'lo.png',
-
-
-    'SHOW_THEMES': True,               
+# UNFOLD ADMIN CONFIGURATION
+UNFOLD = {
+    "SITE_TITLE": "Meteor Admin",
+    "SITE_HEADER": "Meteor Administration",
+    "SITE_URL": "/",
+    "SHOW_HISTORY": True,
+    "SHOW_VIEW_ON_SITE": True,
+    "DASHBOARD_CALLBACK": "meteor.settings.dashboard_callback",
+    "TEMPLATES": {
+        "DASHBOARD": "admin/index.html",  
+    },
+    "ENVIRONMENT": "meteor.settings.environment_callback",
+    "COLORS": {
+        "primary": {
+            "50": "239 246 255",
+            "100": "219 234 254",
+            "200": "191 219 254",
+            "300": "147 197 253",
+            "400": "96 165 250",
+            "500": "59 130 246",
+            "600": "37 99 235",
+            "700": "29 78 216",
+            "800": "30 64 175",
+            "900": "30 58 138",
+        },
+    },
+    "SIDEBAR": {
+        "show_search": True,
+        "show_all_applications": False,
+        "navigation": [
+            {
+                "title": _("Dashboard"),
+                "separator": True,
+                "items": [
+                    {
+                        "title": _("Overview"),
+                        "icon": "dashboard",
+                        "link": reverse_lazy("admin:index"),
+                    },
+                ],
+            },
+            {
+                "title": _("Content"),
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Anime"),
+                        "icon": "movie",
+                        "link": reverse_lazy("admin:user_side_anime_changelist"),
+                    },
+                    {
+                        "title": _("Episodes"),
+                        "icon": "video_library",
+                        "link": reverse_lazy("admin:user_side_episode_changelist"),
+                    },
+                    {
+                        "title": _("Genres"),
+                        "icon": "category",
+                        "link": reverse_lazy("admin:user_side_genre_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("Users & Payments"),
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Users"),
+                        "icon": "people",
+                        "link": reverse_lazy("admin:user_side_user_changelist"),
+                    },
+                    {
+                        "title": _("Subscriptions"),
+                        "icon": "card_membership",
+                        "link": reverse_lazy("admin:user_side_subscription_changelist"),
+                    },
+                    {
+                        "title": _("Payments"),
+                        "icon": "payment",
+                        "link": reverse_lazy("admin:user_side_payment_changelist"),
+                    },
+                ],
+            },
+        ],
+    },
 }
+def dashboard_callback(request, context):
+    from user_side.models import User, Anime, Episode, AnonymousSession
+    from django.db.models import Sum, Count
+    from django.utils import timezone
+    from datetime import timedelta
+    import json
+    
+    total_users = User.objects.count()
+    premium_users = User.objects.filter(is_premium=True).count()
+    total_anime = Anime.objects.filter(is_published=True).count()
+    total_episodes = Episode.objects.filter(is_published=True).count()
+    total_guests = AnonymousSession.objects.count()
+    active_guests = AnonymousSession.objects.filter(last_seen_at__gte=timezone.now() - timedelta(days=1)).count()
+    
+    last_week = timezone.now() - timedelta(days=7)
+    new_users_week = User.objects.filter(created_at__gte=last_week).count()
+    
+    # User growth (30 days)
+    user_growth_labels = []
+    user_growth_data = []
+    premium_growth_data = []
+    
+    for i in range(30, -1, -1):
+        date = timezone.now() - timedelta(days=i)
+        user_growth_labels.append(date.strftime('%m/%d'))
+        user_growth_data.append(User.objects.filter(created_at__date__lte=date.date()).count())
+        premium_growth_data.append(User.objects.filter(created_at__date__lte=date.date(), is_premium=True).count())
+    
+    # Top anime
+    top_anime = Anime.objects.filter(is_published=True).order_by('-views_count')[:5]
+    top_anime_labels = [anime.title[:25] for anime in top_anime]
+    top_anime_data = [anime.views_count for anime in top_anime]
+    
+    # Guest activity (7 days)
+    guest_labels = []
+    guest_data = []
+    
+    for i in range(7, -1, -1):
+        date = timezone.now() - timedelta(days=i)
+        guest_labels.append(date.strftime('%m/%d'))
+        guest_data.append(AnonymousSession.objects.filter(first_seen_at__date=date.date()).count())
+    
+    recent_episodes = Episode.objects.select_related('anime').filter(is_published=True).order_by('-created_at')[:5]
+    
+    context.update({
+        "kpi": [
+            {"title": "Total Users", "metric": f"{total_users:,}", "footer": f"+{new_users_week} this week", "icon": "👥"},
+            {"title": "Premium Users", "metric": f"{premium_users:,}", "footer": f"{(premium_users/total_users*100):.1f}%" if total_users > 0 else "0%", "icon": "⭐"},
+            {"title": "Total Anime", "metric": f"{total_anime:,}", "footer": f"{total_episodes:,} episodes", "icon": "🎬"},
+            {"title": "Guest Sessions", "metric": f"{total_guests:,}", "footer": f"{active_guests} active today", "icon": "🌐"},
+        ],
+        "user_growth_labels": json.dumps(user_growth_labels),
+        "user_growth_data": json.dumps(user_growth_data),
+        "premium_growth_data": json.dumps(premium_growth_data),
+        "top_anime_labels": json.dumps(top_anime_labels),
+        "top_anime_data": json.dumps(top_anime_data),
+        "guest_labels": json.dumps(guest_labels),
+        "guest_data": json.dumps(guest_data),
+        "recent_episodes": recent_episodes,
+    })
+    return context
+
+def environment_callback(request):
+    return ["Development", "success"]
+
+
