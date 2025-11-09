@@ -214,7 +214,6 @@ class EpisodeListView(generics.ListAPIView):
             message="Episodes retrieved"
         )
 
-
 class EpisodeDetailView(AnonymousSessionTrackingMixin, generics.RetrieveAPIView):
     serializer_class = EpisodeDetailSerializer
 
@@ -247,10 +246,36 @@ class EpisodeDetailView(AnonymousSessionTrackingMixin, generics.RetrieveAPIView)
             logger.error(f"Error retrieving episode: {str(e)}")
             raise NotFound("Episode not found")
 
+    def check_premium_access(self, user, episode):
+        if not episode.is_premium_only and not episode.anime.is_premium_only:
+            return True
+        
+        if not user:
+            return False
+        
+        if not user.is_premium:
+            return False
+
+        if user.premium_expires_at and user.premium_expires_at < timezone.now():
+            return False
+        
+        return True
+
     def get(self, request, *args, **kwargs):
         try:
             instance = self.get_object()
             user, anon_session = self.get_user_or_session()
+
+            if not self.check_premium_access(user, instance):
+                return error_response(
+                    message="This episode requires a premium subscription. Please upgrade to premium to watch this content.",
+                    status=status.HTTP_403_FORBIDDEN,
+                    errors={
+                        'is_premium_only': True,
+                        'anime_premium': instance.anime.is_premium_only,
+                        'episode_premium': instance.is_premium_only
+                    }
+                )
 
             view_exists = False
             if user:
@@ -284,9 +309,9 @@ class EpisodeDetailView(AnonymousSessionTrackingMixin, generics.RetrieveAPIView)
                     watch_history_data['anonymous_session'] = anon_session
 
                 try:
-                    watch_history = WatchHistory.objects.create(**watch_history_data)
+                    WatchHistory.objects.create(**watch_history_data)
                 except Exception as e:
-                    pass
+                    logger.warning(f"Failed to create watch history: {str(e)}")
 
             serializer = self.get_serializer(instance, context={'request': request})
             logger.debug(f"Serialized episode: {instance}")
@@ -297,7 +322,6 @@ class EpisodeDetailView(AnonymousSessionTrackingMixin, generics.RetrieveAPIView)
         except NotFound:
             return not_found_response(message="Episode not found")
         except Exception as e:
-            import logging
             logger.error(f"Error in get method: {str(e)}", exc_info=True)
             return error_response(
                 message="Failed to retrieve episode details",
