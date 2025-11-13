@@ -260,7 +260,7 @@ class EpisodeSerializer(serializers.ModelSerializer):
     anime_title = serializers.CharField(source='anime.title', read_only=True)
     languages = serializers.SerializerMethodField()
     title = serializers.CharField()
-    title_ru = serializers.CharField(allow_null=True)  # Allow null for optional field
+    title_ru = serializers.CharField(allow_null=True) 
 
     class Meta:
         model = Episode
@@ -502,13 +502,30 @@ class FavoriteSerializer(serializers.ModelSerializer):
     
 
 class DonationSerializer(serializers.ModelSerializer):
+    avatar = serializers.SerializerMethodField()
+    email = serializers.SerializerMethodField()
+    username = serializers.SerializerMethodField()
+
     class Meta:
         model = Donation
-        fields = ['id', 'name', 'message', 'amount', 'created_at']
+        fields = ['id', 'name', 'avatar', 'email', 'message', 'amount', 'created_at']
 
+    def get_avatar(self, obj):
+        request = self.context.get('request')
+        if obj.avatar and request:
+            return request.build_absolute_uri(obj.avatar.url)
+        return None
+
+    def get_email(self, obj):
+        return obj.user.email if obj.user else None
+
+
+class UserNestedSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'full_name', 'email', 'avatar']
 
 class DonationTopSerializer(serializers.Serializer):
-    user = serializers.IntegerField(allow_null=True)
-    name = serializers.CharField(allow_null=True)
+    user = UserNestedSerializer()
     total_amount = serializers.DecimalField(max_digits=12, decimal_places=2)
     donation_count = serializers.IntegerField()

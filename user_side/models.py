@@ -1,5 +1,5 @@
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
-from django.db.models import Sum, Count, F, Value
+from django.db.models import Sum, Count, F, Value, DecimalField
 from django.db import models
 from django.utils import timezone
 from moviepy.video.io.VideoFileClip import VideoFileClip
@@ -482,11 +482,7 @@ class Favorite(models.Model):
         if not self.added_at:
             self.added_at = timezone.now()
         super().save(*args, **kwargs)
-
-from django.db import models
-from django.db.models import Sum, Count, DecimalField
-from django.db.models.functions import Coalesce
-
+        
 class Donation(models.Model):
     user = models.ForeignKey(
         'User', 
@@ -513,7 +509,7 @@ class Donation(models.Model):
         Return top donors aggregated by user or name, including total donated and count.
         """
         return (
-            cls.objects.values('user', 'name')
+            cls.objects.select_related('user')
             .annotate(
                 total_amount=Coalesce(Sum('amount'), 0, output_field=DecimalField()),
                 donation_count=Count('id')
@@ -527,7 +523,7 @@ class Donation(models.Model):
         Increment existing donation if user or name exists.
         Avoid recursion by using update() instead of save() on existing instance.
         """
-        if self._state.adding:  # Only run logic on new objects
+        if self._state.adding:  
             if self.user:
                 existing = Donation.objects.filter(user=self.user).first()
             elif self.name:
@@ -536,12 +532,10 @@ class Donation(models.Model):
                 existing = None
 
             if existing:
-                # Increment amount atomically to avoid recursion
                 Donation.objects.filter(pk=existing.pk).update(
                     amount=F('amount') + self.amount,
                     message=(F('message') + f"\n{self.message}") if self.message else existing.message
                 )
-                return  # Don't create a new row
+                return  
 
-        # Otherwise, create new donation
         super().save(*args, **kwargs)

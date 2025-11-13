@@ -1076,11 +1076,9 @@ class DonationListView(generics.ListAPIView):
     ordering_fields = ['amount', 'created_at']
 
     def list(self, request, *args, **kwargs):
-        # Aggregate top donors
         top_donors_qs = Donation.top_donors(limit=3)
         top_serialized = DonationTopSerializer(top_donors_qs, many=True).data
 
-        # Other donors (not aggregated for now)
         remaining_donors_qs = self.get_queryset()[3:]
         page = self.paginate_queryset(remaining_donors_qs)
 
@@ -1101,7 +1099,6 @@ class DonationListView(generics.ListAPIView):
                 }
             )
 
-        # If no pagination
         serializer = self.get_serializer(self.get_queryset(), many=True)
         return success_response(
             data={"top_donors": top_serialized, "other_donors": serializer.data},
