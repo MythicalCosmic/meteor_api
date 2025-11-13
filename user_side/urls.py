@@ -26,4 +26,7 @@ urlpatterns = [
     path('comments/<int:comment_id>/', CommentDetailView.as_view(), name='comment-detail'),
     path('animes/<str:anime_identifier>/favorite/', FavoriteView.as_view(), name='favorite'),
     path('favorites/', FavoriteListView.as_view(), name='favorite-list'), 
+
+
+    path('donations/', DonationListView.as_view(), name='donation-list'),
 ]

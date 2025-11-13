@@ -273,6 +273,11 @@ UNFOLD = {
                         "icon": "payment",
                         "link": reverse_lazy("admin:user_side_payment_changelist"),
                     },
+                    {
+                    "title": _("Donations"),
+                    "icon": "volunteer_activism",
+                    "link": reverse_lazy("admin:user_side_donation_changelist"),
+                    },
                 ],
             },
         ],

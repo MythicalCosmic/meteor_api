@@ -499,3 +499,16 @@ class FavoriteSerializer(serializers.ModelSerializer):
         if not value.is_published:
             raise serializers.ValidationError("Cannot favorite an unpublished anime.")
         return value
+    
+
+class DonationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Donation
+        fields = ['id', 'name', 'message', 'amount', 'created_at']
+
+
+class DonationTopSerializer(serializers.Serializer):
+    user = serializers.IntegerField(allow_null=True)
+    name = serializers.CharField(allow_null=True)
+    total_amount = serializers.DecimalField(max_digits=12, decimal_places=2)
+    donation_count = serializers.IntegerField()

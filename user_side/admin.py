@@ -9,7 +9,7 @@ from unfold.contrib.filters.admin import RangeDateFilter, RangeNumericFilter, Ch
 from .models import (
     User, AnonymousSession, Anime, Episode, EpisodeLanguage,
     Genre, WatchHistory, Like, Comment, Subscription, Payment,
-    Advertisement, AdImpression, Favorite,
+    Advertisement, AdImpression, Favorite, Donation
 )
 
 
@@ -539,7 +539,23 @@ class FavoriteAdmin(ReadOnlyAdmin):
             return obj.user.email
         return 'Guest'
 
+@admin.register(Donation)
+class DonationAdmin(ModelAdmin):
+    list_display = ('display_donor', 'display_amount', 'message', 'created_at')
+    list_filter = (('created_at', RangeDateFilter),)
+    search_fields = ('user__full_name', 'user__email', 'name', 'message')
+    readonly_fields = ('created_at',)
+    list_fullwidth = True
 
+    @display(description='Donor')
+    def display_donor(self, obj):
+        if obj.user:
+            return obj.user.full_name or obj.user.email
+        return obj.name or "Anonymous"
+
+    @display(description='Amount (UZS)', ordering='amount')
+    def display_amount(self, obj):
+        return f"{obj.amount:,.0f} UZS"
 
 admin.site.site_header = 'Meteor Anime Administration'
 admin.site.site_title = 'Meteor Admin'

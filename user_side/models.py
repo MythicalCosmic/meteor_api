@@ -1,7 +1,9 @@
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
+from django.db.models import Sum, Count, F, Value
 from django.db import models
 from django.utils import timezone
 from moviepy.video.io.VideoFileClip import VideoFileClip
+from django.db.models.functions import Coalesce
 
 class UserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
@@ -479,4 +481,67 @@ class Favorite(models.Model):
     def save(self, *args, **kwargs):
         if not self.added_at:
             self.added_at = timezone.now()
+        super().save(*args, **kwargs)
+
+from django.db import models
+from django.db.models import Sum, Count, DecimalField
+from django.db.models.functions import Coalesce
+
+class Donation(models.Model):
+    user = models.ForeignKey(
+        'User', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='donations'
+    )
+    name = models.CharField(max_length=100, blank=True, null=True)
+    message = models.TextField(blank=True, null=True)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-amount', '-created_at']
+
+    def __str__(self):
+        donor_name = self.user.full_name if self.user else self.name or "Anonymous"
+        return f"{donor_name} — {self.amount:,.0f} UZS"
+
+    @classmethod
+    def top_donors(cls, limit=3):
+        """
+        Return top donors aggregated by user or name, including total donated and count.
+        """
+        return (
+            cls.objects.values('user', 'name')
+            .annotate(
+                total_amount=Coalesce(Sum('amount'), 0, output_field=DecimalField()),
+                donation_count=Count('id')
+            )
+            .order_by('-total_amount')[:limit]
+        )
+    
+    
+    def save(self, *args, **kwargs):
+        """
+        Increment existing donation if user or name exists.
+        Avoid recursion by using update() instead of save() on existing instance.
+        """
+        if self._state.adding:  # Only run logic on new objects
+            if self.user:
+                existing = Donation.objects.filter(user=self.user).first()
+            elif self.name:
+                existing = Donation.objects.filter(user__isnull=True, name=self.name).first()
+            else:
+                existing = None
+
+            if existing:
+                # Increment amount atomically to avoid recursion
+                Donation.objects.filter(pk=existing.pk).update(
+                    amount=F('amount') + self.amount,
+                    message=(F('message') + f"\n{self.message}") if self.message else existing.message
+                )
+                return  # Don't create a new row
+
+        # Otherwise, create new donation
         super().save(*args, **kwargs)

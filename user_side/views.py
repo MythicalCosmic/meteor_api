@@ -1068,3 +1068,44 @@ class FavoriteListView(AnonymousSessionTrackingMixin, generics.ListAPIView):
                 message="Failed to retrieve favorite anime",
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+        
+class DonationListView(generics.ListAPIView):
+    serializer_class = DonationSerializer
+    queryset = Donation.objects.all()
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    ordering_fields = ['amount', 'created_at']
+
+    def list(self, request, *args, **kwargs):
+        # Aggregate top donors
+        top_donors_qs = Donation.top_donors(limit=3)
+        top_serialized = DonationTopSerializer(top_donors_qs, many=True).data
+
+        # Other donors (not aggregated for now)
+        remaining_donors_qs = self.get_queryset()[3:]
+        page = self.paginate_queryset(remaining_donors_qs)
+
+        if page is not None:
+            serializer_page = self.get_serializer(page, many=True)
+            paginated_response = self.get_paginated_response(serializer_page.data)
+
+            return success_response(
+                data={
+                    "top_donors": top_serialized,
+                    "other_donors": paginated_response.data.get('results')
+                },
+                message="Donations retrieved successfully",
+                meta={
+                    "count": paginated_response.data.get('count'),
+                    "next": paginated_response.data.get('next'),
+                    "previous": paginated_response.data.get('previous'),
+                }
+            )
+
+        # If no pagination
+        serializer = self.get_serializer(self.get_queryset(), many=True)
+        return success_response(
+            data={"top_donors": top_serialized, "other_donors": serializer.data},
+            message="Donations retrieved successfully"
+        )
+
+
